@@ -1,0 +1,139 @@
+/* Turnos e conteúdo Markdown da conversa. Sem sombra por mensagem. */
+.turn { margin: 0 0 2rem; }
+.turn:last-child { margin-bottom: 0; }
+
+.turn-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.turn-role { font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.02em; }
+.turn-meta { font-size: 0.8125rem; color: var(--text-secondary); }
+
+.msg-user {
+  background: var(--bg-subtle);
+  border-radius: var(--radius-panel);
+  padding: var(--space-3) var(--space-4);
+  max-width: 85%;
+  margin-left: auto;
+  width: fit-content;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-size: 1rem;
+}
+
+.msg-body {
+  font-size: 1rem;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+.msg-body > :first-child { margin-top: 0; }
+.msg-body > :last-child { margin-bottom: 0; }
+.msg-body p { margin: 0.75em 0; }
+.msg-body h2, .msg-body h3, .msg-body h4 {
+  margin: 1.25em 0 0.5em;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+.msg-body h2 { font-size: 1.25rem; }
+.msg-body h3 { font-size: 1.125rem; }
+.msg-body h4 { font-size: 1rem; }
+.msg-body ul, .msg-body ol { margin: 0.75em 0; padding-left: 1.5rem; }
+.msg-body li { margin: 0.25em 0; }
+.msg-body blockquote {
+  margin: 0.75em 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--border-control);
+  color: var(--text-secondary);
+}
+.msg-body a { overflow-wrap: break-word; }
+.msg-body hr { border: none; border-top: 1px solid var(--border-subtle); margin: 1.25em 0; }
+
+.msg-body code.inline {
+  font-family: var(--font-code);
+  font-size: 0.875em;
+  background: var(--code-inline-bg);
+  border-radius: 0.375rem;
+  padding: 0.1em 0.35em;
+}
+
+.codeblock { margin: 0.75em 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); overflow: hidden; }
+
+.codeblock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-subtle);
+  padding: var(--space-1) var(--space-3);
+  min-height: 2.75rem;
+}
+
+.codeblock-lang { font-family: var(--font-code); font-size: 0.75rem; color: var(--text-secondary); }
+
+.codeblock pre {
+  margin: 0;
+  background: var(--code-bg);
+  color: var(--code-fg);
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  font-family: var(--font-code);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.copy-btn {
+  border: 1px solid var(--border-control);
+  background: transparent;
+  color: inherit;
+  border-radius: var(--radius-control);
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.7rem;
+  min-height: 2.25rem;
+}
+
+.copy-btn:hover { background: var(--bg-hover); }
+
+.table-wrap { overflow-x: auto; margin: 0.75em 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); }
+
+.table-wrap table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
+.table-wrap th, .table-wrap td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
+.table-wrap thead th { background: var(--bg-subtle); font-weight: 700; }
+.table-wrap tbody tr:last-child th, .table-wrap tbody tr:last-child td { border-bottom: none; }
+
+.turn-actions { display: flex; gap: var(--space-1); margin-top: var(--space-2); }
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-secondary);
+  border-radius: var(--radius-control);
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.55rem;
+  min-height: 2.75rem;
+}
+
+.action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.turn-error {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  color: var(--warning-text);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.875rem;
+  margin-top: var(--space-3);
+}
+
+.turn-error.danger { background: none; border-color: var(--danger); color: var(--danger); }
+
+.skeleton { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4) 0; }
+.skeleton span { display: block; height: 1rem; border-radius: 0.375rem; background: var(--bg-subtle); }

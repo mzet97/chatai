@@ -1,0 +1,183 @@
+{% extends "chat/base.html" %}
+{% block title %}{% if conversation %}{{ conversation.title }} — {% endif %}claude-chat-local{% endblock %}
+{% block body %}
+{% include "chat/icons.html" %}
+<div id="app">
+  <div id="scrim" hidden></div>
+  <aside id="sidebar" aria-label="Conversas">
+    <div class="side-brand">
+      <button id="side-collapse" class="icon-btn" type="button" aria-label="Recolher barra lateral">
+        <svg class="ic" aria-hidden="true"><use href="#i-panel"/></svg>
+      </button>
+      <span class="brand-name">claude-chat-local</span>
+    </div>
+    <div class="side-top">
+      <button id="btn-new" class="new-chat" type="button">
+        <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>
+        <span>Nova conversa</span>
+      </button>
+      <div class="search-wrap">
+        <svg class="ic search-ic" aria-hidden="true"><use href="#i-search"/></svg>
+        <label class="visually-hidden" for="search">Buscar conversas</label>
+        <input id="search" type="search" placeholder="Buscar conversas…" autocomplete="off">
+        <button id="search-clear" class="icon-btn sm" type="button" hidden aria-label="Limpar busca">
+          <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+        </button>
+      </div>
+    </div>
+    <nav id="conv-nav" aria-label="Lista de conversas">
+      <ul id="conv-list"></ul>
+      <p id="conv-empty" class="empty-note" hidden>Nenhuma conversa encontrada. <button id="conv-clear-search" class="linklike" type="button">Limpar busca</button></p>
+    </nav>
+    <div class="side-foot">
+      <a class="foot-link" href="{% url 'settings' %}">
+        <svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>
+        <span>Configurações</span>
+      </a>
+      <form method="post" action="{% url 'logout' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="foot-link as-button">
+          <svg class="ic" aria-hidden="true"><use href="#i-logout"/></svg>
+          <span>Sair</span>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <main id="main">
+    <header id="chat-header">
+      <button id="side-open" class="icon-btn" type="button" aria-label="Abrir barra lateral">
+        <svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
+      <h1 id="chat-title">Nova conversa</h1>
+      <div class="head-actions">
+        <button id="model-btn" class="model-select" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Selecionar modelo">
+          <span id="model-label">Modelo</span>
+          <svg class="ic sm" aria-hidden="true"><use href="#i-chev"/></svg>
+        </button>
+        <label class="level-wrap">
+          <span class="visually-hidden" id="level-label">Nível de variação</span>
+          <select id="level-select" class="model-select" aria-labelledby="level-label level-hint" aria-describedby="level-hint">
+            <option value="low">Baixo</option>
+            <option value="medium" selected>Médio</option>
+            <option value="high">Alto</option>
+          </select>
+          <span class="visually-hidden" id="level-hint">Ajusta a variação das próximas respostas. Um nível maior não garante mais precisão.</span>
+        </label>
+        <label class="stream-wrap" id="stream-wrap" title="Exibe a resposta conforme ela é gerada.">
+          <input id="stream-toggle" type="checkbox" checked>
+          <span aria-hidden="true" class="stream-track"><span class="stream-thumb"></span></span>
+          <span class="stream-label">Streaming</span>
+          <span class="visually-hidden" id="stream-hint">Exibe a resposta conforme ela é gerada. Desligado: a resposta será exibida ao terminar.</span>
+        </label>
+        <button id="actions-btn" class="icon-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Ações da conversa">
+          <svg class="ic" aria-hidden="true"><use href="#i-dots"/></svg>
+        </button>
+      </div>
+      <div id="model-pop" class="popover" hidden role="listbox" aria-label="Modelos disponíveis" tabindex="-1">
+        <div class="pop-search">
+          <input id="model-search" type="search" placeholder="Buscar modelo…" aria-label="Buscar modelo" autocomplete="off">
+          <button id="model-refresh" class="icon-btn sm" type="button" aria-label="Atualizar catálogo de modelos">
+            <svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>
+          </button>
+        </div>
+        <p id="model-state" class="pop-state" role="status">Carregando…</p>
+        <ul id="model-list"></ul>
+      </div>
+      <div id="actions-pop" class="popover menu" hidden role="menu" tabindex="-1">
+        <button role="menuitemcheckbox" type="button" id="stream-menuitem" aria-checked="true">Streaming: ativado</button>
+        <button role="menuitem" type="button" data-act="conv-settings">Configurações da conversa</button>
+        <button role="menuitem" type="button" data-act="details">Detalhes da execução</button>
+        <a role="menuitem" id="btn-export-md" href="#" download="conversa.md">Exportar Markdown</a>
+        <a role="menuitem" id="btn-export-json" href="#" download="conversa.json">Exportar JSON</a>
+      </div>
+    </header>
+
+    <div id="key-banner" class="banner" hidden>
+      <svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>
+      <p>Nenhuma chave configurada. O histórico continua acessível.</p>
+      <a href="{% url 'settings' %}">Configurar conexão</a>
+    </div>
+
+    <div id="messages" aria-label="Histórico da conversa"></div>
+
+    <section id="empty-state" aria-label="Começar">
+      <h2>O que vamos explorar?</h2>
+      <p>Converse, teste prompts e acompanhe o contexto enviado à IA.</p>
+      <ul class="suggestions">
+        <li><button type="button" data-suggest="Me explique este conceito com um exemplo simples: ">Entender um conceito</button></li>
+        <li><button type="button" data-suggest="Revise este código e aponte riscos e melhorias: ">Revisar um código</button></li>
+        <li><button type="button" data-suggest="Teste este prompt e critique a formulação: ">Testar um prompt</button></li>
+      </ul>
+      <p class="privacy-note">Histórico salvo neste dispositivo. As mensagens enviadas são processadas pela <span id="privacy-dest">Anthropic</span>.</p>
+    </section>
+
+    <button id="scroll-pill" type="button" hidden>
+      <svg class="ic sm" aria-hidden="true"><use href="#i-down"/></svg>
+      Ir para a última mensagem
+    </button>
+
+    <div id="status" role="status"></div>
+
+    <form id="composer" aria-label="Enviar mensagem">
+      <label class="visually-hidden" for="input">Mensagem</label>
+      <textarea id="input" rows="2" placeholder="Escreva sua mensagem…"></textarea>
+      <button id="btn-send" type="submit" aria-label="Enviar mensagem" disabled>
+        <svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>
+      </button>
+      <button id="btn-stop" type="button" hidden aria-label="Interromper geração">
+        <svg class="ic" aria-hidden="true"><use href="#i-stop"/></svg>
+      </button>
+    </form>
+  </main>
+
+  <aside id="inspector" aria-label="Detalhes da execução" hidden>
+    <header>
+      <h2>Detalhes da execução</h2>
+      <button id="inspector-close" class="icon-btn" type="button" aria-label="Fechar painel">
+        <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </header>
+    <p id="inspector-which" class="meta">Nenhuma resposta inspecionada.</p>
+    <section aria-label="Resumo"><h3>Resumo</h3><dl id="insp-summary"></dl></section>
+    <section aria-label="Contexto enviado"><h3>Contexto enviado</h3><div id="insp-context"></div></section>
+    <section aria-label="Uso e execução"><h3>Uso e execução</h3><dl id="insp-usage"></dl></section>
+    <details id="insp-tech"><summary>Modo técnico</summary><pre id="inspect-body"></pre></details>
+  </aside>
+</div>
+
+<dialog id="conv-dialog" aria-labelledby="conv-dialog-title">
+  <form method="dialog" id="conv-form">
+    <h2 id="conv-dialog-title">Configurações da conversa</h2>
+    <label>Título <input id="f-title" name="title" maxlength="200"></label>
+    <label>Modelo <input id="f-model" name="preferred_model" placeholder="(padrão da conta)"></label>
+    <label>Instruções da conversa <textarea id="f-system" name="system_prompt" rows="4" placeholder="(opcional: tarefa, tom, formato)"></textarea>
+      <span class="field-hint">Ajustam tarefa, tom e formato. Não substituem a política de segurança da aplicação.</span>
+    </label>
+    <label>Máx. saída (tokens) <input id="f-maxout" name="max_output_tokens" type="number" min="1"></label>
+    <label>Orçamento entrada (tokens) <input id="f-budget" name="input_budget" type="number" min="1"></label>
+    <label class="check"><input id="f-strict" name="strict_mode" type="checkbox"> <span>Modo estrito (bloquear em vez de reduzir)</span></label>
+    <p class="form-note">Vale para as próximas mensagens. Cada resposta guarda seu modelo real.</p>
+    <menu>
+      <button type="submit" value="save" class="primary">Salvar</button>
+      <button type="submit" value="archive">Arquivar/desarquivar</button>
+      <button type="submit" value="cancel">Fechar</button>
+    </menu>
+  </form>
+</dialog>
+
+<dialog id="delete-dialog" aria-labelledby="delete-title">
+  <form method="dialog" id="delete-form">
+    <h2 id="delete-title">Excluir conversa</h2>
+    <p>Excluir <strong id="delete-name"></strong> e todos os seus dados? Cópias exportadas não são apagadas. Não há como desfazer.</p>
+    <menu>
+      <button type="submit" value="cancel">Manter</button>
+      <button type="submit" value="confirm" class="danger">Excluir</button>
+    </menu>
+  </form>
+</dialog>
+{% endblock %}
+{% block scripts %}
+{% load static %}
+<script type="module" src="{% static 'chat/js/chat.js' %}"></script>
+{% endblock %}

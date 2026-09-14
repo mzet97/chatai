@@ -1,0 +1,69 @@
+{% extends "chat/base.html" %}
+{% block title %}Configurações — claude-chat-local{% endblock %}
+{% block body %}
+<main id="settings">
+  <a class="back" href="{% url 'index' %}">← Voltar ao chat</a>
+  <h1>Configurações</h1>
+  <p class="local-note">Interface e armazenamento locais. A inferência ocorre na API: credenciais e histórico só saem do computador para o endpoint configurado, após confirmação.</p>
+
+  <fieldset>
+    <legend>Aparência</legend>
+    <div role="radiogroup" aria-label="Tema" class="theme-row">
+      <label><input type="radio" name="theme" value="system"> Sistema</label>
+      <label><input type="radio" name="theme" value="light"> Claro</label>
+      <label><input type="radio" name="theme" value="dark"> Escuro</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Conexão</legend>
+    <dl id="effective"></dl>
+    <p id="last-test" class="field-hint"></p>
+    <label>Chave da API (campo de escrita; vazio mantém)
+      <input id="s-key" type="password" autocomplete="off" placeholder="(vazio = manter)">
+      <span class="field-hint">Origem atual: <strong id="key-origin">—</strong> · Keychain disponível: <strong id="keychain-av">—</strong>. “Testar conexão” não gera texto (só lista modelos); o teste de geração é separado e consome tokens.</span>
+    </label>
+    <label class="check"><input id="s-use-keychain" type="checkbox"> <span>Salvar no Keychain do macOS</span></label>
+    <p>
+      <button id="s-save-key" class="btn primary" type="button">Salvar chave</button>
+      <button id="s-remove-key" class="btn" type="button">Remover chave…</button>
+    </p>
+    <p>
+      <button id="d-run" class="btn" type="button">Testar conexão</button>
+      <label class="check"><input id="d-gen" type="checkbox"> <span>Incluir teste de geração (pequeno, consome tokens)</span></label>
+    </p>
+    <ol id="d-steps"></ol>
+    <pre id="d-generation"></pre>
+  </fieldset>
+
+  <fieldset>
+    <legend>Padrões</legend>
+    <label>Modelo padrão
+      <input id="s-model" list="model-list" autocomplete="off"><datalist id="model-list"></datalist>
+      <span class="field-hint">Vale para conversas novas. Cada resposta guarda seu modelo real.</span>
+    </label>
+    <p id="model-warning" class="warn" hidden></p>
+    <button id="s-save" class="btn primary" type="button">Salvar padrões</button>
+    <p id="s-msg" role="status"></p>
+    <details class="advanced">
+      <summary>Avançado (conexão e limites)</summary>
+      <label>Endpoint <input id="s-base-url" autocomplete="off">
+        <span class="field-hint">Trocar o domínio exige confirmação e passa pela allowlist do servidor.</span>
+      </label>
+      <label>Timeout (segundos) <input id="s-timeout" type="number" min="5" max="600"></label>
+      <label>Tentativas automáticas <input id="s-retries" type="number" min="0" max="3"></label>
+    </details>
+  </fieldset>
+
+  <fieldset>
+    <legend>Modelos</legend>
+    <button id="m-refresh" class="btn" type="button">Atualizar catálogo</button>
+    <p id="m-meta"></p>
+    <ul id="m-list"></ul>
+  </fieldset>
+</main>
+{% endblock %}
+{% block scripts %}
+{% load static %}
+<script type="module" src="{% static 'chat/js/settings-page.js' %}"></script>
+{% endblock %}

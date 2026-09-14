@@ -1,0 +1,15 @@
+{% extends "chat/base.html" %}
+{% block title %}Entrar — claude-chat-local{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+  <main id="login">
+    <h1>claude-chat-local</h1>
+    <p class="local-note">Uso pessoal, neste computador. Interface e dados locais; a inferência roda na API.</p>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit" class="btn primary">Entrar</button>
+    </form>
+  </main>
+</div>
+{% endblock %}
