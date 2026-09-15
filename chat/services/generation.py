@@ -757,6 +757,7 @@ async def resume_run(run_id: str, *, user, client=None):
     from chat.services.tools import catalog as _tool_catalog
     from chat.services.tools.chat_loop import (
         LoopState,
+        _save_invocation,
         check_resume_entry,
         error_result,
         execute_one,
@@ -840,15 +841,51 @@ async def resume_run(run_id: str, *, user, client=None):
         if err is not None:
             code, message = err
             group_blocks.append(error_result(call["id"], code, message))
-            yield {
-                "type": "tool_finished",
-                "step": state.step,
-                "tool_use_id": call["id"],
-                "ok": False,
-            }
+            await sync_to_async(_save_invocation)(
+                owner=user,
+                conversation=conversation,
+                run_uuid=str(run_id),
+                step=state.step,
+                rec=rec,
+                call=call,
+                decision="approve" if code not in ("refused",) else "deny",
+                state="refused" if code in ("refused",) else "failed",
+                ok=False,
+                text="",
+                error_code=code,
+            )
+            yield _emit(
+                {
+                    "type": "tool_finished",
+                    "step": state.step,
+                    "tool_use_id": call["id"],
+                    "ok": False,
+                }
+            )
             continue
         if state.invocations >= _tool_limits().MAX_INVOCATIONS:
             group_blocks.append(error_result(call["id"], "limit", "Limite de invocações."))
+            await sync_to_async(_save_invocation)(
+                owner=user,
+                conversation=conversation,
+                run_uuid=str(run_id),
+                step=state.step,
+                rec=rec,
+                call=call,
+                decision="approve",
+                state="failed",
+                ok=False,
+                text="",
+                error_code="limit",
+            )
+            yield _emit(
+                {
+                    "type": "tool_finished",
+                    "step": state.step,
+                    "tool_use_id": call["id"],
+                    "ok": False,
+                }
+            )
             continue
         events, block = await execute_one(
             call=call, rec=rec, approval=approval, ctx=ctx, catalog=catalog,

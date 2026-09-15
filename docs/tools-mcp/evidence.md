@@ -29,3 +29,21 @@
   confiável; `textContent` + limpeza `innerHTML = ""`), após renomeação
   `acc`→`S.acc` na refatoração do `streamRun`.
 - Commit: `feat(m5): UI ...` (este marco).
+
+## M6 — Falhas, recuperação, aceite, docs
+- `pytest tests/integration/test_m6_recovery.py` → 9 passed: revogação
+  entre pausa/retomada, isolamento entre usuários (MCP alheio = 400),
+  injeção em resultado não autoriza escrita, system sem descrições,
+  limites pós-retomada (erro `limit` persistido, sem efeito), pares
+  intactos sem protocolo no contexto, ASGI real (anon → 302/403), aceite
+  recusa→aprova→persiste em SQLite arquivo.
+- Ajustes: retomada agora persiste invocação em erro/limite e emite
+  `tool_finished` envelopado; `test_security` verifica intento (só
+  `innerHTML = ""` de limpeza).
+- Achado de teste: fixtures `user`/`conversation` nascem antes do
+  `file_db` trocar o banco → dados de teste com arquivo criados dentro do
+  corpo (padrão `test_file_db.py`); cliente sync em teste async vai para
+  thread (`sync_to_async`).
+- `pytest tests/` → 138 passed, 1 skipped; `tests/e2e` → 1 passed;
+  `ruff` limpo. README (uso + seção didática) e CLAUDE.md atualizados;
+  `docs/learning-guide.md` §9 (tools/MCP).

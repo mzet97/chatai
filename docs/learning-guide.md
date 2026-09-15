@@ -69,3 +69,24 @@ em `docs/architecture.md`.
 5. Interrompa uma resposta no meio, reabra a conversa e confira o parcial.
 6. Envie duas vezes com a mesma `idempotency_key` (replay) e com conteúdo
    diferente (409). 7. Rode `backup_db`/`restore_db` e confira o `integrity_check`.
+
+## 9. Tool calling e MCP (o app como host)
+
+1. O modelo nunca executa nada: ele devolve blocos `tool_use` (id + nome +
+   argumentos). Quem executa é o app, depois de validar e autorizar.
+2. O app responde com `tool_result` (mesmo id) em mensagem `user` logo após
+   a do assistente — e chama o modelo de novo. Uma resposta pode ter várias
+   etapas; `done` só encerra o turno inteiro.
+3. Três decisões no backend: `auto` (leituras locais seguras), `require`
+   (escritas e tudo externo: pede aprovação) e `deny` (bloqueado).
+4. MCP é só o transporte app↔servidor (SDK oficial). O catálogo exposto ao
+   modelo é a interseção: prefs da conversa ∩ disponível (nunca tudo).
+5. Sem aprovação, a execução pausa (`awaiting_approval`), o HTTP encerra e
+   nada fica esperando em memória. Continuar retoma do banco, sem
+   re-perguntar ao modelo — e revalida prefs, schema e aprovação.
+6. Descrições e resultados MCP são texto não confiável: nunca entram no
+   system prompt, nunca viram HTML, nunca autorizam nada.
+
+Exercícios: ative `calculate` numa conversa e peça uma conta (trilha mostra
+as etapas); peça uma nota, recuse, aprove a nova tentativa; abra o inspetor
+da run (`run_detail.tools`) e confira etapas, invocações e aprovações.
