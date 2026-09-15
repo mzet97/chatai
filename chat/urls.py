@@ -3,6 +3,7 @@ from django.urls import path
 from chat.views import (
     api_conversations,
     api_messages,
+    api_rag,
     api_runs,
     api_tools,
     pages,
@@ -57,6 +58,10 @@ urlpatterns = [
         name="api_approval_decide",
     ),
     path("api/runs/<uuid:run_uuid>/continue", api_tools.run_continue, name="api_run_continue"),
+    path("api/rag/bases", api_rag.bases, name="api_rag_bases"),
+    path("api/rag/bases/<uuid:base_uuid>/documents", api_rag.base_documents, name="api_rag_docs"),
+    path("api/rag/bases/<uuid:base_uuid>/upload", api_rag.upload_document, name="api_rag_upload"),
+    path("api/rag/jobs/<uuid:job_uuid>", api_rag.job_status, name="api_rag_job"),
     # API config / diagnóstico / modelos
     path("api/settings", settings_views.settings_api, name="api_settings"),
     path("api/settings/save", settings_views.settings_save, name="api_settings_save"),

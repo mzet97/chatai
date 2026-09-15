@@ -11,3 +11,4 @@ backups/
 *.log
 staticfiles/
 .DS_Store
+models/

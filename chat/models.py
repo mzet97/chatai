@@ -5,6 +5,12 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from chat.models_rag import (  # noqa: F401 — registra modelos RAG p/ migrations
+    Document,
+    DocumentVersion,
+    IngestionJob,
+    KnowledgeBase,
+)
 from chat.models_tools import (  # noqa: F401 — registra modelos p/ migrations
     MCPConnection,
     ModelStep,
