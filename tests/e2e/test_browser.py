@@ -155,6 +155,24 @@ def test_browser_critical_flows(browser_server):
             )
             page.set_viewport_size({"width": 1280, "height": 800})
 
+            # M5 Ferramentas: popover abre, catálogo lista locais, toggle persiste.
+            page.click("#tools-btn")
+            page.wait_for_selector("#tools-list .tool-check", timeout=10000)
+            names = page.locator("#tools-list .tool-name").all_inner_texts()
+            assert any("local__calculate" in n for n in names)
+            assert any("local__create_study_note" in n for n in names)
+            assert "pede aprovação" in page.locator("#tools-list").inner_text()
+            page.locator("#tools-list .tool-check", has_text="local__calculate").click()
+            page.wait_for_function(
+                "() => document.getElementById('tools-label').textContent.includes('(1)')",
+                timeout=10000,
+            )
+            page.reload()
+            page.wait_for_function(
+                "() => document.getElementById('tools-label').textContent.includes('(1)')",
+                timeout=10000,
+            )  # prefs sobrevivem ao reload
+
             # Diagnóstico sem chave: passo de config falha com dignidade.
             page.goto(f"{browser_server}/settings/")
             page.click("#d-run")

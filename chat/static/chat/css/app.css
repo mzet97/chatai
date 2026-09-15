@@ -720,3 +720,13 @@ body.side-hidden #sidebar { display: none; }
   .head-actions .model-select { max-width: 10rem; }
   #stream-wrap { display: none; } /* mobile: alternar pelo menu ⋯ */
 }
+
+/* Popover de ferramentas por conversa (M5). */
+.pop-title { font-weight: 600; font-size: 0.875rem; margin: var(--space-1); }
+.pop-hint { color: var(--text-secondary); font-size: 0.75rem; margin: var(--space-2) var(--space-1) var(--space-1); }
+.tools-group { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin: var(--space-3) var(--space-1) var(--space-1); }
+.tool-check { display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-2) var(--space-1); border-radius: var(--radius-control); cursor: pointer; }
+.tool-check:hover { background: var(--bg-hover); }
+.tool-check input { margin-top: 0.2rem; min-width: 1.1rem; min-height: 1.1rem; }
+.tool-name { font-family: var(--font-code); font-size: 0.8125rem; }
+.tool-desc { display: block; font-size: 0.75rem; color: var(--text-secondary); }

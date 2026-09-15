@@ -162,8 +162,9 @@ function rowMenu(anchor, c) {
 let openPop = null;
 function closePops() {
   document.querySelectorAll(".popover.rowmenu").forEach((p) => p.remove());
-  for (const id of ["model-pop", "actions-pop"]) $(id).hidden = true;
+  for (const id of ["model-pop", "actions-pop", "tools-pop"]) $(id).hidden = true;
   $("model-btn").setAttribute("aria-expanded", "false");
+  $("tools-btn").setAttribute("aria-expanded", "false");
   $("actions-btn").setAttribute("aria-expanded", "false");
   if (openPop && openPop._anchor) openPop._anchor.setAttribute("aria-expanded", "false");
   openPop = null;
@@ -306,6 +307,7 @@ async function loadConversation() {
   setModelLabel(conv.preferred_model || null);
   applyLevelState(conv);
   applyStreamState(conv);
+  refreshToolsLabel();
   $("btn-export-md").href = `/api/conversations/${convUuid}/export?format=markdown`;
   $("btn-export-json").href = `/api/conversations/${convUuid}/export?format=json`;
   $("f-title").value = conv.title;
@@ -572,110 +574,92 @@ function friendlyError(ev) {
   return ev.message || "Falha na geração.";
 }
 
-async function streamRun(runId, url) {
+async function streamRun(runId, url, opts = {}) {
+  const { method = "GET", resume = null } = opts;
   activeRun = runId;
   aborter = new AbortController();
   syncSendState();
-  setStatus("Gerando resposta…");
 
-  const shell = {
-    uuid: "run-" + runId,
-    role: "assistant",
-    text: "",
-    state: "partial",
-    created_at: new Date().toISOString(),
-  };
-  const stick0 = nearBottom();
-  const node = messageNode(shell);
-  node.querySelector(".turn-actions").remove();
-  const bodyDiv = node.querySelector(".msg-body");
-  const textNode = document.createTextNode("");
-  bodyDiv.textContent = "";
-  bodyDiv.append(textNode); // streaming: texto puro via textContent, sem innerHTML
-  let thread = msgEl.querySelector(".thread");
-  if (!thread) {
-    thread = document.createElement("div");
-    thread.className = "thread";
-    msgEl.append(thread);
-  }
-  thread.append(node);
-  node.dataset.runId = runId;
-  if (stick0) msgEl.scrollTop = msgEl.scrollHeight;
-
-  let acc = "";
-  let lastSeq = 0;
-  let liveMode = null; // efetivo, vindo do run_started (fonte: snapshot do backend)
-  let terminal = null; // done | error | cancelled — o primeiro vale
-  const finishTurn = (finalText, state) => {
+  let S;
+  if (resume) {
+    S = resume;
+    S.terminal = null;
+    setStatus("Retomando execução autorizada…");
+  } else {
+    setStatus("Gerando resposta…");
+    const shell = {
+      uuid: "run-" + runId,
+      role: "assistant",
+      text: "",
+      state: "partial",
+      created_at: new Date().toISOString(),
+    };
+    const stick0 = nearBottom();
+    const node = messageNode(shell);
+    node.querySelector(".turn-actions").remove();
+    const bodyDiv = node.querySelector(".msg-body");
+    const textNode = document.createTextNode("");
     bodyDiv.textContent = "";
-    bodyDiv.append(renderMarkdown(finalText));
-    node.insertAdjacentElement("beforeend", turnActions({ ...shell, text: finalText, state }, bodyDiv));
-    addDetailsButton(node, runId);
+    bodyDiv.append(textNode); // streaming: texto puro via textContent, sem innerHTML
+    const trail = document.createElement("details");
+    trail.className = "trail";
+    trail.open = true;
+    const summary = document.createElement("summary");
+    summary.textContent = "Atividade de ferramentas";
+    const items = document.createElement("div");
+    items.className = "trail-items";
+    trail.append(summary, items);
+    node.append(trail);
+    let thread = msgEl.querySelector(".thread");
+    if (!thread) {
+      thread = document.createElement("div");
+      thread.className = "thread";
+      msgEl.append(thread);
+    }
+    thread.append(node);
+    node.dataset.runId = runId;
+    if (stick0) msgEl.scrollTop = msgEl.scrollHeight;
+    S = {
+      runId, node, bodyDiv, textNode, trail, items, shell,
+      acc: "", lastSeq: 0, liveMode: null, terminal: null,
+      trailById: {}, keepBusy: false,
+    };
+    node._toolState = S; // continueRun reaproveita este turno
+  }
+  const finishTurn = (finalText, state) => {
+    S.bodyDiv.textContent = "";
+    S.bodyDiv.append(renderMarkdown(finalText));
+    S.node.insertAdjacentElement("beforeend", turnActions({ ...S.shell, text: finalText, state }, S.bodyDiv));
+    addDetailsButton(S.node, runId);
+    if (S.trail) S.trail.open = false;
   };
+  S.finishTurn = finishTurn;
   try {
-    const resp = await fetch(url, { signal: aborter.signal, credentials: "same-origin" });
+    const resp = await fetch(url, { signal: aborter.signal, credentials: "same-origin", method });
     const ctype = resp.headers.get("content-type") || "";
     if (!resp.ok || !resp.body || !ctype.includes("text/event-stream")) {
       throw new Error(`Stream HTTP ${resp.status}`);
     }
     for await (const ev of readSSE(resp)) {
-      if (!ev || ev.run_id !== runId) continue; // outra execução: ignorar
-      if (typeof ev.seq === "number" && ev.seq <= lastSeq) continue; // repetição: ignorar
-      if (typeof ev.seq === "number") lastSeq = ev.seq;
-      if (terminal) continue; // terminal já aplicado: done não duplica
-      if (ev.type === "run_started") {
-        liveMode = ev.mode === "complete" ? "complete" : "streaming";
-        if (liveMode === "complete") {
-          textNode.textContent = "Gerando resposta… a resposta será exibida ao terminar.";
-          setStatus("Gerando resposta… aguarde a conclusão.");
-        }
-      } else if (ev.type === "text_delta") {
-        if (liveMode === "complete") continue; // parcial nunca vaza no modo completo
-        acc += ev.text || "";
-        textNode.textContent = acc;
-        if (nearBottom()) msgEl.scrollTop = msgEl.scrollHeight;
-      } else if (ev.type === "done") {
-        terminal = "done";
-        // Estado canônico: o texto do done (persistido) prevalece; sem re-concatenar.
-        acc = typeof ev.text === "string" ? ev.text : acc;
-        finishTurn(acc, "ok");
-        const meta = node.querySelector(".turn-meta");
-        meta.textContent += ev.truncated ? " · limite de saída" : "";
-        setStatus(ev.truncated ? "A resposta atingiu o limite de saída." : "");
-        updateScrollPill();
-        await refreshInspection(runId, false);
-      } else if (ev.type === "usage") {
-        const meta = node.querySelector(".turn-meta");
-        meta.textContent += ` · ${ev.input_tokens ?? "?"} in / ${ev.output_tokens ?? "?"} out`;
-      } else if (ev.type === "cancelled") {
-        terminal = "cancelled";
-        finishTurn(acc, "cancelled");
-        setStatus("Resposta interrompida.");
-      } else if (ev.type === "error") {
-        terminal = "error";
-        // Modo completo: parcial retido no servidor nunca é revelado aqui.
-        const shown = liveMode === "complete" ? "" : acc;
-        finishTurn(shown, "failed");
-        const p = document.createElement("div");
-        p.className = "turn-error" + (ev.code === "unauthorized" ? " danger" : "");
-        p.textContent = friendlyError(ev);
-        bodyDiv.append(p);
-        setStatus("Falha: " + friendlyError(ev));
-      }
+      handleStreamEvent(runId, ev, S);
     }
-    if (!terminal) {
+    if (!S.terminal) {
       // Fechamento sem evento terminal não é sucesso: consulta o estado salvo.
       try {
         const run = await api(`/api/runs/${runId}`);
         if (run.state === "done") {
           const msgs = await api(`/api/conversations/${convUuid}/messages`);
           const mine = (msgs.results || []).find((m) => m.run_id === runId);
-          finishTurn(mine ? mine.text : acc, "ok");
-          terminal = "done";
+          finishTurn(mine ? mine.text : S.acc, "ok");
+          S.terminal = "done";
           setStatus("");
+        } else if (run.state === "awaiting_approval") {
+          S.terminal = "paused";
+          S.keepBusy = true;
+          setStatus("Aguardando sua aprovação…");
         } else {
-          finishTurn(liveMode === "complete" ? "" : acc, "failed");
-          terminal = "error";
+          finishTurn(S.liveMode === "complete" ? "" : S.acc, "failed");
+          S.terminal = "error";
           setStatus("Conexão encerrada antes da conclusão. Verifique o estado e repita se precisar.");
         }
       } catch {
@@ -684,15 +668,244 @@ async function streamRun(runId, url) {
     }
   } catch (e) {
     if (e.name === "AbortError") {
-      if (!terminal) setStatus("Interrompendo…");
+      if (!S.terminal) setStatus("Interrompendo…");
     } else setStatus("Conexão perdida: " + e.message);
   } finally {
     activeRun = null;
     aborter = null;
-    if (currentConv) currentConv.has_active_run = false;
+    if (currentConv && !S.keepBusy) currentConv.has_active_run = false;
     syncSendState();
     updateScrollPill();
     await loadConversations($("search").value.trim());
+  }
+}
+
+function trailItem(S, key, text) {
+  let el = key && S.trailById[key];
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "trail-item";
+    S.items.append(el);
+    if (key) S.trailById[key] = el;
+  }
+  el.textContent = text; // textContent: nome/resultado é texto não confiável
+  return el;
+}
+
+function handleStreamEvent(runId, ev, S) {
+  if (!ev || ev.run_id !== runId) return; // outra execução: ignorar
+  if (typeof ev.seq === "number" && ev.seq <= S.lastSeq) return; // repetição: ignorar
+  if (typeof ev.seq === "number") S.lastSeq = ev.seq;
+  if (S.terminal) return; // terminal já aplicado: done não duplica
+  const { node, bodyDiv, textNode } = S;
+  if (ev.type === "run_started") {
+    S.liveMode = ev.mode === "complete" ? "complete" : "streaming";
+    if (S.liveMode === "complete" && !ev.resumed) {
+      textNode.textContent = "Gerando resposta… a resposta será exibida ao terminar.";
+      setStatus("Gerando resposta… aguarde a conclusão.");
+    }
+  } else if (ev.type === "text_delta") {
+    if (S.liveMode === "complete") return; // parcial nunca vaza no modo completo
+    S.acc += ev.text || "";
+    textNode.textContent = S.acc;
+    if (nearBottom()) msgEl.scrollTop = msgEl.scrollHeight;
+  } else if (ev.type === "model_step_started") {
+    trailItem(S, "step-" + ev.step, `Etapa ${ev.step + 1} do modelo…`);
+  } else if (ev.type === "tool_call_requested") {
+    trailItem(S, ev.tool_use_id, `Solicitada: ${ev.name}`);
+  } else if (ev.type === "tool_approval_required") {
+    trailItem(S, ev.tool_use_id, `Aguardando aprovação: ${ev.name}`);
+    S.items.append(approvalCard(runId, ev));
+    setStatus("Aprovação necessária para continuar.");
+  } else if (ev.type === "tool_started") {
+    trailItem(S, ev.tool_use_id, `Executando: ${ev.name}…`);
+  } else if (ev.type === "tool_finished") {
+    trailItem(S, ev.tool_use_id, ev.ok ? `Concluída.` : `Falhou (ver detalhes).`);
+  } else if (ev.type === "run_paused") {
+    S.terminal = "paused";
+    S.keepBusy = true; // servidor mantém active_run: envio segue bloqueado
+    if (currentConv) currentConv.has_active_run = true;
+    syncSendState();
+    setStatus("Aguardando sua aprovação para continuar.");
+  } else if (ev.type === "done") {
+    S.terminal = "done";
+    // Estado canônico: o texto do done (persistido) prevalece; sem re-concatenar.
+    S.acc = typeof ev.text === "string" ? ev.text : S.acc;
+    S.finishTurn(S.acc, "ok");
+    const meta = node.querySelector(".turn-meta");
+    meta.textContent += ev.truncated ? " · limite de saída" : "";
+    setStatus(ev.truncated ? "A resposta atingiu o limite de saída." : "");
+    updateScrollPill();
+    refreshInspection(runId, false);
+  } else if (ev.type === "usage") {
+    const meta = node.querySelector(".turn-meta");
+    meta.textContent += ` · ${ev.input_tokens ?? "?"} in / ${ev.output_tokens ?? "?"} out`;
+  } else if (ev.type === "cancelled") {
+    S.terminal = "cancelled";
+    S.finishTurn(S.acc, "cancelled");
+    setStatus("Resposta interrompida.");
+  } else if (ev.type === "error") {
+    S.terminal = "error";
+    // Modo completo: parcial retido no servidor nunca é revelado aqui.
+    const shown = S.liveMode === "complete" ? "" : S.acc;
+    S.finishTurn(shown, "failed");
+    const p = document.createElement("div");
+    p.className = "turn-error" + (ev.code === "unauthorized" ? " danger" : "");
+    p.textContent = friendlyError(ev);
+    bodyDiv.append(p);
+    setStatus("Falha: " + friendlyError(ev));
+  }
+}
+
+// Títulos definidos pela aplicação (nunca HTML do servidor).
+const TOOL_TITLES = {
+  local__calculate: "Calcular valor",
+  local__current_time: "Consultar horário",
+  local__create_study_note: "Criar nota de estudo",
+  local__list_study_notes: "Listar notas de estudo",
+};
+
+function approvalCard(runId, ev) {
+  const card = document.createElement("div");
+  card.className = "approval-card";
+  card.setAttribute("role", "group");
+  card.setAttribute("aria-label", "Aprovação de ferramenta");
+  card.tabIndex = -1;
+  const title = document.createElement("strong");
+  title.textContent = TOOL_TITLES[ev.name] || "Executar ferramenta externa (MCP)";
+  const name = document.createElement("code");
+  name.textContent = ev.name; // texto, nunca HTML
+  const hint = document.createElement("p");
+  hint.textContent = "Aprovação única. Decida para retomar a execução.";
+  const row = document.createElement("div");
+  row.className = "approval-actions";
+  const okBtn = document.createElement("button");
+  okBtn.type = "button";
+  okBtn.className = "btn-approve";
+  okBtn.textContent = "Aprovar uma vez";
+  const noBtn = document.createElement("button");
+  noBtn.type = "button";
+  noBtn.className = "btn-deny";
+  noBtn.textContent = "Recusar";
+  const decide = async (decision) => {
+    okBtn.disabled = true; // anti duplo-clique: consumo é único no servidor
+    noBtn.disabled = true;
+    hint.textContent = decision === "approve" ? "Aprovada. Retomando…" : "Recusada. Retomando…";
+    try {
+      await api(`/api/runs/${runId}/approvals/${ev.approval_id}/decide`, {
+        method: "POST",
+        body: { decision, idempotency_key: newIdempotencyKey() },
+      });
+    } catch (e) {
+      hint.textContent = "Decisão falhou: " + e.message;
+      okBtn.disabled = false;
+      noBtn.disabled = false;
+      return;
+    }
+    card.querySelector(".approval-actions").remove();
+    continueRun(runId, card);
+  };
+  okBtn.addEventListener("click", () => decide("approve"));
+  noBtn.addEventListener("click", () => decide("deny"));
+  row.append(okBtn, noBtn);
+  card.append(title, name, hint, row);
+  return card;
+}
+
+async function continueRun(runId, card) {
+  // Reaproveita o turno atual: o estado S vive no DOM do nó.
+  const node = card.closest(".turn");
+  const S = node && node._toolState;
+  if (!S) {
+    setStatus("Não foi possível retomar neste turno. Recarregue a página.");
+    return;
+  }
+  await streamRun(runId, `/api/runs/${runId}/continue`, { method: "POST", resume: S });
+}
+
+/* ---------- ferramentas por conversa (M5) ---------- */
+function setToolsLabel(count) {
+  $("tools-label").textContent = count ? `Ferramentas (${count})` : "Ferramentas";
+}
+
+async function refreshToolsLabel() {
+  if (!convUuid) return;
+  try {
+    const prefs = await api(`/api/conversations/${convUuid}/tools`);
+    setToolsLabel((prefs.enabled || []).length);
+  } catch {
+    setToolsLabel(0);
+  }
+}
+
+async function openToolsPop() {
+  const pop = $("tools-pop");
+  const willOpen = pop.hidden;
+  closePops();
+  if (!willOpen || !convUuid) return;
+  pop.hidden = false;
+  $("tools-btn").setAttribute("aria-expanded", "true");
+  $("tools-state").textContent = "Carregando…";
+  $("tools-list").innerHTML = "";
+  try {
+    const data = await api(`/api/conversations/${convUuid}/tools/catalog`);
+    renderToolsList(data.groups || {}, new Set(data.enabled || []));
+    $("tools-state").textContent = "Somente as marcadas entram no ciclo da IA.";
+  } catch (e) {
+    $("tools-state").textContent = "Erro ao carregar: " + e.message;
+  }
+  $("tools-pop").focus();
+}
+
+function renderToolsList(groups, enabled) {
+  const list = $("tools-list");
+  list.innerHTML = "";
+  const origins = { local: "Neste app", mcp: "Servidores MCP" };
+  for (const [origin, tools] of Object.entries(groups)) {
+    const h = document.createElement("p");
+    h.className = "tools-group";
+    h.textContent = origins[origin] || origin;
+    list.append(h);
+    for (const t of tools) {
+      const label = document.createElement("label");
+      label.className = "tool-check";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = enabled.has(t.stable_id);
+      box.setAttribute("aria-label", t.name);
+      box.addEventListener("change", () => toggleTool(t.stable_id, box));
+      const name = document.createElement("span");
+      name.className = "tool-name";
+      name.textContent = t.name; // texto, nunca HTML
+      const desc = document.createElement("span");
+      desc.className = "tool-desc";
+      desc.textContent = (t.approval === "require" ? "pede aprovação · " : "") + (t.description || "");
+      label.append(box, name, desc);
+      list.append(label);
+    }
+  }
+  if (!list.children.length) {
+    $("tools-state").textContent = "Nenhuma ferramenta autorizada para esta conversa.";
+  }
+}
+
+async function toggleTool(stableId, box) {
+  box.disabled = true;
+  try {
+    const prefs = await api(`/api/conversations/${convUuid}/tools`);
+    const set = new Set(prefs.enabled || []);
+    if (box.checked) set.add(stableId);
+    else set.delete(stableId);
+    const saved = await api(`/api/conversations/${convUuid}/tools`, {
+      method: "PUT",
+      body: { enabled: [...set] },
+    });
+    setToolsLabel((saved.enabled || []).length);
+  } catch (e) {
+    box.checked = !box.checked;
+    $("tools-state").textContent = "Falha ao salvar: " + e.message;
+  } finally {
+    box.disabled = false;
   }
 }
 
@@ -1004,6 +1217,7 @@ $("scrim").addEventListener("click", () => setSide(false));
 
 // Seletor + menu
 $("model-btn").addEventListener("click", openModelPop);
+$("tools-btn").addEventListener("click", openToolsPop);
 $("model-search").addEventListener("input", async () => {
   try {
     const data = await api("/api/models");
@@ -1047,7 +1261,7 @@ $("inspector-close").addEventListener("click", () => closeInspector(true));
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    if (!$("model-pop").hidden || !$("actions-pop").hidden || openPop) {
+    if (!$("model-pop").hidden || !$("actions-pop").hidden || !$("tools-pop").hidden || openPop) {
       closePops();
       $("model-btn").focus();
     } else if (!$("inspector").hidden) closeInspector(true);
@@ -1069,6 +1283,14 @@ document.addEventListener("click", (e) => {
   ) {
     $("actions-pop").hidden = true;
     $("actions-btn").setAttribute("aria-expanded", "false");
+  }
+  if (
+    !$("tools-pop").hidden &&
+    !$("tools-pop").contains(e.target) &&
+    !$("tools-btn").contains(e.target)
+  ) {
+    $("tools-pop").hidden = true;
+    $("tools-btn").setAttribute("aria-expanded", "false");
   }
 });
 

@@ -39,7 +39,11 @@ def test_api_returns_raw_text_and_templates_escape(logged_client, conversation):
     from pathlib import Path
 
     js = Path("chat/static/chat/js/chat.js").read_text()
-    assert "textContent = acc" in js
+    assert "textContent = S.acc" in js  # parcial do stream via textContent
+    for line in js.splitlines():
+        code = line.split("//", 1)[0].strip()
+        if "innerHTML" in code:
+            assert code.endswith('innerHTML = "";'), code  # só limpeza
     md = Path("chat/static/chat/js/markdown.js").read_text()
     code = "\n".join(line for line in md.splitlines() if not line.strip().startswith("//"))
     assert "innerHTML" not in code  # só DOM seguro: createElement/textContent
