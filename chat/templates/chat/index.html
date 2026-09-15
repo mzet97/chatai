@@ -64,6 +64,10 @@
           </select>
           <span class="visually-hidden" id="level-hint">Ajusta a variação das próximas respostas. Um nível maior não garante mais precisão.</span>
         </label>
+        <button id="tools-btn" class="model-select" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Ferramentas da conversa">
+          <span id="tools-label">Ferramentas</span>
+          <svg class="ic sm" aria-hidden="true"><use href="#i-chev"/></svg>
+        </button>
         <label class="stream-wrap" id="stream-wrap" title="Exibe a resposta conforme ela é gerada.">
           <input id="stream-toggle" type="checkbox" checked>
           <span aria-hidden="true" class="stream-track"><span class="stream-thumb"></span></span>
@@ -83,6 +87,12 @@
         </div>
         <p id="model-state" class="pop-state" role="status">Carregando…</p>
         <ul id="model-list"></ul>
+      </div>
+      <div id="tools-pop" class="popover" hidden role="dialog" aria-label="Ferramentas da conversa" tabindex="-1">
+        <p class="pop-title">Ferramentas nesta conversa</p>
+        <p id="tools-state" class="pop-state" role="status">Carregando…</p>
+        <div id="tools-list"></div>
+        <p class="pop-hint">Desativadas por padrão. Escritas sempre pedem aprovação.</p>
       </div>
       <div id="actions-pop" class="popover menu" hidden role="menu" tabindex="-1">
         <button role="menuitemcheckbox" type="button" id="stream-menuitem" aria-checked="true">Streaming: ativado</button>

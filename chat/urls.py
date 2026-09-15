@@ -1,6 +1,13 @@
 from django.urls import path
 
-from chat.views import api_conversations, api_messages, api_runs, pages, settings_views
+from chat.views import (
+    api_conversations,
+    api_messages,
+    api_runs,
+    api_tools,
+    pages,
+    settings_views,
+)
 
 urlpatterns = [
     path("", pages.index, name="index"),
@@ -33,6 +40,23 @@ urlpatterns = [
     path("api/runs/<uuid:run_uuid>/stream", api_runs.run_stream, name="api_run_stream"),
     path("api/runs/<uuid:run_uuid>/cancel", api_runs.run_cancel, name="api_run_cancel"),
     path("api/runs/<uuid:run_uuid>", api_runs.run_detail, name="api_run_detail"),
+    # API ferramentas por conversa (M5) + aprovações + continuação
+    path(
+        "api/conversations/<uuid:conv_uuid>/tools",
+        api_tools.conversation_tools,
+        name="api_conversation_tools",
+    ),
+    path(
+        "api/conversations/<uuid:conv_uuid>/tools/catalog",
+        api_tools.conversation_tools_catalog,
+        name="api_conversation_tools_catalog",
+    ),
+    path(
+        "api/runs/<uuid:run_uuid>/approvals/<uuid:approval_id>/decide",
+        api_tools.approval_decide,
+        name="api_approval_decide",
+    ),
+    path("api/runs/<uuid:run_uuid>/continue", api_tools.run_continue, name="api_run_continue"),
     # API config / diagnóstico / modelos
     path("api/settings", settings_views.settings_api, name="api_settings"),
     path("api/settings/save", settings_views.settings_save, name="api_settings_save"),

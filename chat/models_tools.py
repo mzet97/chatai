@@ -159,6 +159,19 @@ class ToolCatalogSnapshot(models.Model):
         ]
 
 
+class ConversationToolPrefs(models.Model):
+    """Seleção de ferramentas por conversa (M5). Default vazio = sem tools."""
+
+    conversation = models.OneToOneField(
+        "chat.Conversation", on_delete=models.CASCADE, related_name="tool_prefs"
+    )
+    enabled = models.JSONField(default=list)  # [stable_id, ...]
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["conversation"])]
+
+
 class ModelStep(models.Model):
     """Etapa do loop Anthropic dentro de uma GenerationRun (M5 persiste; M2 cria)."""
 

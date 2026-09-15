@@ -14,7 +14,16 @@ from chat.models_tools import (  # noqa: F401 — registra modelos p/ migrations
     ToolInvocation,
 )
 
-RUN_STATES = ("preparing", "streaming", "done", "failed", "cancelled", "interrupted", "abandoned")
+RUN_STATES = (
+    "preparing",
+    "streaming",
+    "awaiting_approval",
+    "done",
+    "failed",
+    "cancelled",
+    "interrupted",
+    "abandoned",
+)
 TERMINAL_RUN_STATES = ("done", "failed", "cancelled", "interrupted", "abandoned")
 MESSAGE_STATES = ("ok", "partial", "failed", "cancelled")
 
@@ -100,7 +109,7 @@ class GenerationRun(models.Model):
     idempotency_key = models.CharField(max_length=100)
     content_hash = models.CharField(max_length=64)
     state = models.CharField(
-        max_length=12, choices=[(s, s) for s in RUN_STATES], default="preparing"
+        max_length=20, choices=[(s, s) for s in RUN_STATES], default="preparing"
     )
     snapshot = models.JSONField(default=dict)  # config imutável, SEM segredos
     context_used = models.JSONField(default=list)  # seqs incluídos + omitidos

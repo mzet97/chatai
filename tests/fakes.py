@@ -76,6 +76,25 @@ class FakeStreamManager:
         return False
 
 
+class FakeToolUseBlock:
+    def __init__(self, id, name, input):
+        self.type = "tool_use"
+        self.id = id
+        self.name = name
+        self.input = input
+
+
+class FakeToolMessage:
+    """Mensagem do modelo com blocos tool_use (stop_reason tool_use)."""
+
+    def __init__(self, blocks, *, model="fake-model", msg_id="msg_fake_tool"):
+        self.content = blocks
+        self.stop_reason = "tool_use"
+        self.usage = SimpleNamespace(input_tokens=10, output_tokens=5)
+        self.model = model
+        self.id = msg_id
+
+
 class FakeMessagesNamespace:
     def __init__(
         self,
@@ -85,6 +104,7 @@ class FakeMessagesNamespace:
         stream_manager=None,
         create_result=None,
         create_error=None,
+        create_results=None,
     ):
         self.calls = {"count_tokens": [], "stream": [], "create": []}
         self._count_value = count_value
@@ -92,6 +112,7 @@ class FakeMessagesNamespace:
         self._stream_manager = stream_manager
         self._create_result = create_result
         self._create_error = create_error
+        self._create_results = list(create_results or [])
 
     async def count_tokens(self, *, model, system, messages):
         self.calls["count_tokens"].append({"model": model, "system": system, "messages": messages})
@@ -107,6 +128,8 @@ class FakeMessagesNamespace:
         self.calls["create"].append(kwargs)
         if self._create_error is not None:
             raise self._create_error
+        if self._create_results:
+            return self._create_results.pop(0)
         return self._create_result
 
 

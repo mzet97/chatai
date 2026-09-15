@@ -116,6 +116,7 @@ def run_detail(request, run_uuid):
     run = owned_run(request.user, run_uuid)
     snap = run.snapshot or {}
     snap.pop("api_key", None)
+    tools = _tools_panel(run)
     return JsonResponse(
         {
             "uuid": str(run.uuid),
@@ -137,5 +138,57 @@ def run_detail(request, run_uuid):
             "context_used": run.context_used,
             "started_at": run.started_at.isoformat(),
             "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+            "tools": tools,
         }
     )
+
+
+def _tools_panel(run) -> dict:
+    """Painel didático M5: etapas, invocações e aprovações — sem segredos,
+    sem dumps brutos, sem args completos além do preview já sanitizado."""
+    from django.utils import timezone
+
+    from chat.models_tools import ModelStep, ToolApproval, ToolInvocation
+
+    now = timezone.now()
+
+    steps = list(
+        ModelStep.objects.filter(run_uuid=str(run.uuid))
+        .order_by("step")
+        .values("step", "model", "stop_reason", "input_tokens", "output_tokens", "tool_use_ids")
+    )
+    invocations = [
+        {
+            "step": i.step,
+            "tool_use_id": i.tool_use_id,
+            "name": i.anthropic_name,
+            "decision": i.decision,
+            "state": i.state,
+            "effect": i.effect,
+            "ok": i.result_ok,
+            "error": i.error_code,
+        }
+        for i in ToolInvocation.objects.filter(
+            conversation_id=run.conversation_id, run_uuid=str(run.uuid)
+        ).order_by("step", "id")
+    ]
+    approvals = [
+        {
+            "approval_id": str(a.public_id),
+            "tool_use_id": a.tool_use_id,
+            "name": a.anthropic_name,
+            "decision": a.decision,
+            "preview": a.args_preview,
+            "expired": a.expires_at <= now,
+            "consumed": a.consumed_at is not None,
+        }
+        for a in ToolApproval.objects.filter(
+            conversation_id=run.conversation_id, run_uuid=str(run.uuid)
+        ).order_by("created_at")
+    ]
+    return {
+        "enabled": (run.snapshot or {}).get("tools_enabled", []),
+        "steps": steps,
+        "invocations": invocations,
+        "approvals": approvals,
+    }

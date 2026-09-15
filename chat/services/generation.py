@@ -382,6 +382,12 @@ async def execute_run(run_id: str, *, user, client=None):
 
     context_used = [{"seq": s, "included": True} for s in built.included_seqs]
     context_used.append({"omitted_turns": built.omitted_turns})
+    # Catálogo congelado por execução: interseção prefs ∩ disponível agora.
+    # Vazio = caminho textual inalterado, sem MCP, sem payload de tools.
+    from chat.services.tools import catalog as _tool_catalog
+
+    tool_catalog = await sync_to_async(_tool_catalog.authorized_catalog)(conversation)
+    snapshot["tools_enabled"] = [r.stable_id for r in tool_catalog]
     await sync_to_async(_set_streaming)(run_id, snapshot, context_used, resolved.model)
     yield _emit(
         {
@@ -393,6 +399,25 @@ async def execute_run(run_id: str, *, user, client=None):
             "requested_mode": requested_mode,
         }
     )
+
+    if tool_catalog:
+        extra_body = {"temperature": temp_value} if temp_value is not None else None
+        async for _ev in _execute_tool_path(
+            run_id,
+            _emit,
+            user=user,
+            conversation=conversation,
+            client=client,
+            model=built.model,
+            system=built.system,
+            max_tokens=built.max_tokens,
+            extra_body=extra_body,
+            live=live,
+            catalog=tool_catalog,
+            snapshot=snapshot,
+        ):
+            yield _ev
+        return
 
     text_parts: list[str] = []
     last_checkpoint = time.monotonic()
@@ -579,13 +604,28 @@ def _cancel_flag(run_id: str) -> bool:
 def request_cancel(run_id: str) -> bool:
     """Marca cancelamento cooperativo. Retorna False se já terminal."""
     n = GenerationRun.objects.filter(
-        uuid=run_id, cancel_requested=False, state__in=("preparing", "streaming")
+        uuid=run_id,
+        cancel_requested=False,
+        state__in=("preparing", "streaming", "awaiting_approval"),
     ).update(cancel_requested=True)
     return n > 0
 
 
+def _set_paused(run_id: str, snapshot: dict, text: str) -> None:
+    """Pausa humana: estado persistido, sem transação aberta, sem espera em memória."""
+    with transaction.atomic():
+        run = GenerationRun.objects.get(uuid=run_id)
+        run.state = "awaiting_approval"
+        run.snapshot = snapshot
+        run.save(update_fields=["state", "snapshot"])
+        if run.assistant_message_id:
+            Message.objects.filter(pk=run.assistant_message_id).update(
+                text=text, state="partial"
+            )
+
+
 def retry_info(*, conversation: Conversation, user_message: Message) -> tuple[bool, str]:
-    """Retry explícito só do ÚLTIMO turno falho/cancelado/interrompido, sem turnos posteriores."""
+    """Retry explícito só do ÚLTIMO turno falho/cancelado/interrompido."""
     last_user = conversation.messages.filter(role="user").order_by("-seq").first()
     if last_user is None or last_user.pk != user_message.pk:
         return False, "Só é possível repetir o último turno da conversa."
@@ -600,3 +640,318 @@ def retry_info(*, conversation: Conversation, user_message: Message) -> tuple[bo
     if conversation.active_run_id is not None:
         return False, "Existe uma geração ativa nesta conversa."
     return True, ""
+
+
+# --- caminho com ferramentas (M5) ---
+
+
+async def _execute_tool_path(
+    run_id, _emit, *, user, conversation, client, model, system, max_tokens,
+    extra_body, live, catalog, snapshot,
+):
+    """Loop explícito com eventos finos; `done` só no turno inteiro."""
+    from chat.services.tools.chat_loop import LoopState, run_tool_events
+    from chat.services.tools.context import ExecutionContext
+
+    ctx = ExecutionContext(user_id=user.pk, conversation_id=conversation.pk)
+    state = LoopState(messages=[dict(m) for m in _tool_base_messages(snapshot)])
+    agen = run_tool_events(
+        client=client,
+        model=model,
+        system=system,
+        max_tokens=max_tokens,
+        state=state,
+        catalog=catalog,
+        ctx=ctx,
+        owner=user,
+        conversation=conversation,
+        run_uuid=str(run_id),
+        live=live,
+        extra_body=extra_body,
+        cancel_flag=lambda: sync_to_async(_cancel_flag)(run_id),
+    )
+    async for ev in agen:
+        kind = ev["type"]
+        if kind == "turn_paused":
+            snapshot["tool_loop"] = {
+                "pending": ev["pending"],
+                "loop": ev["loop"],
+                "model": model,
+                "system": system,
+                "max_tokens": max_tokens,
+                "extra_body": extra_body,
+            }
+            text = "".join(ev["loop"]["text_parts"])
+            await sync_to_async(_set_paused)(run_id, snapshot, text)
+            yield _emit({"type": "run_paused", "state": "awaiting_approval"})
+            return
+        if kind == "turn_done":
+            stopped = ev.get("stopped", "end_turn")
+            text = ev.get("final_text", "")
+            usage = ev.get("usage") or None
+            if stopped == "end_turn":
+                await sync_to_async(_finalize)(
+                    run_id, state="done", text=text, msg_state="ok",
+                    usage=usage, stop_reason=ev.get("stop_reason"),
+                )
+                if usage and (
+                    usage.get("input_tokens") is not None
+                    or usage.get("output_tokens") is not None
+                ):
+                    yield _emit(
+                        {
+                            "type": "usage",
+                            "input_tokens": usage.get("input_tokens"),
+                            "output_tokens": usage.get("output_tokens"),
+                            "final": True,
+                        }
+                    )
+                yield _emit(
+                    {
+                        "type": "done",
+                        "message_id": await sync_to_async(_assistant_uuid)(run_id),
+                        "text": text,
+                        "stop_reason": ev.get("stop_reason"),
+                        "truncated": False,
+                        "model": model,
+                        "input_tokens": (usage or {}).get("input_tokens"),
+                        "output_tokens": (usage or {}).get("output_tokens"),
+                    }
+                )
+            elif stopped == "cancelled":
+                await sync_to_async(_finalize)(
+                    run_id, state="cancelled", text=text, msg_state="cancelled",
+                    error_code="cancelled",
+                    error_message="Geração interrompida pelo usuário.",
+                )
+                yield _emit(
+                    {"type": "cancelled", "message": "Geração interrompida pelo usuário."}
+                )
+            else:
+                code = "tool_limit" if stopped == "limit" else "tool_budget"
+                message = (
+                    "Limite de etapas de ferramentas atingido."
+                    if stopped == "limit"
+                    else "Orçamento de tempo do ciclo de ferramentas esgotado."
+                )
+                await sync_to_async(_finalize)(
+                    run_id, state="failed", text=text,
+                    msg_state="failed" if not text else "partial",
+                    error_code=code, error_message=message,
+                )
+                yield _emit({"type": "error", "code": code, "message": message})
+            return
+        yield _emit(ev)
+
+
+def _tool_base_messages(snapshot: dict) -> list:
+    return snapshot.get("tool_base_messages") or []
+
+
+async def resume_run(run_id: str, *, user, client=None):
+    """Continua execução pausada do estado persistido (sem re-perguntar).
+
+    Revalida propriedade, prefs/catálogo, schema e aprovação antes do efeito.
+    """
+    from chat.services import delivery as _delivery
+    from chat.services.tools import catalog as _tool_catalog
+    from chat.services.tools.chat_loop import (
+        LoopState,
+        check_resume_entry,
+        error_result,
+        execute_one,
+        run_tool_events,
+    )
+    from chat.services.tools.context import ExecutionContext
+
+    _seq = 0
+
+    def _emit(event: dict) -> dict:
+        nonlocal _seq
+        _seq += 1
+        return {"run_id": str(run_id), "seq": _seq, **event}
+
+    run = await sync_to_async(_load_run)(run_id)
+    conversation = run.conversation
+    if run.conversation.owner_id != user.pk:
+        yield _emit({"type": "error", "code": "forbidden", "message": "Acesso negado."})
+        return
+    if run.state != "awaiting_approval":
+        yield _emit(
+            {"type": "error", "code": "validation", "message": "Execução não está pausada."}
+        )
+        return
+    if await sync_to_async(_cancel_flag)(run_id):
+        await sync_to_async(_finalize)(
+            run_id, state="cancelled", msg_state="cancelled",
+            error_code="cancelled", error_message="Geração interrompida pelo usuário.",
+        )
+        yield _emit(
+                    {"type": "cancelled", "message": "Geração interrompida pelo usuário."}
+                )
+        return
+    snap = run.snapshot or {}
+    loop_snap = (snap.get("tool_loop") or {})
+    pending = loop_snap.get("pending", [])
+    state = LoopState.from_snapshot(loop_snap.get("loop", {}))
+    catalog = await sync_to_async(_tool_catalog.authorized_catalog)(conversation)
+    ctx = ExecutionContext(user_id=user.pk, conversation_id=conversation.pk)
+    live = (snap.get("effective_response_mode") or _delivery.STREAMING) == _delivery.STREAMING
+    if client is None:
+        resolved, _cred, secret = await sync_to_async(_resolve_snapshot_config)(user, conversation)
+        if not secret:
+            yield _emit(
+                {
+                    "type": "error",
+                    "code": "unauthorized",
+                    "message": "Nenhuma chave configurada.",
+                }
+            )
+            return
+        from chat.services import configuration as _cfg
+        from chat.services.anthropic_client import build_client as _build
+
+        try:
+            base_url = _cfg.validate_base_url(resolved.base_url)
+        except ValueError as exc:
+            yield _emit({"type": "error", "code": "validation", "message": str(exc)})
+            return
+        client = _build(
+            api_key=secret,
+            base_url=base_url,
+            timeout_seconds=resolved.timeout_seconds,
+            max_retries=resolved.max_retries,
+        )
+    await sync_to_async(_mark_streaming)(run_id)
+    yield _emit(
+        {"type": "run_started", "resumed": True, "mode": snap.get("effective_response_mode")}
+    )
+    # Grupo pausado: revalida cada item antes do efeito; sem re-perguntar.
+    group_blocks: list[dict] = []
+    for entry in pending:
+        call = {
+            "id": entry["tool_use_id"],
+            "name": entry["name"],
+            "input": entry.get("args", {}),
+        }
+        rec, approval, err = await sync_to_async(check_resume_entry)(
+            entry, catalog, user, str(run_id)
+        )
+        if err is not None:
+            code, message = err
+            group_blocks.append(error_result(call["id"], code, message))
+            yield {
+                "type": "tool_finished",
+                "step": state.step,
+                "tool_use_id": call["id"],
+                "ok": False,
+            }
+            continue
+        if state.invocations >= _tool_limits().MAX_INVOCATIONS:
+            group_blocks.append(error_result(call["id"], "limit", "Limite de invocações."))
+            continue
+        events, block = await execute_one(
+            call=call, rec=rec, approval=approval, ctx=ctx, catalog=catalog,
+            run_uuid=str(run_id), owner=user, conversation=conversation, step=state.step,
+        )
+        for item in events:
+            yield _emit(item)
+        state.invocations += 1
+        group_blocks.append(block)
+    if group_blocks:
+        state.messages.append({"role": "user", "content": group_blocks})
+    state.step += 1
+    snap.pop("tool_loop", None)
+    # Continua o loop do modelo a partir do estado restaurado.
+    meta_model = loop_snap.get("model") or snap.get("requested_model") or ""
+    agen = run_tool_events(
+        client=client,
+        model=meta_model,
+        system=loop_snap.get("system") or "",
+        max_tokens=int(loop_snap.get("max_tokens") or 1024),
+        state=state,
+        catalog=catalog,
+        ctx=ctx,
+        owner=user,
+        conversation=conversation,
+        run_uuid=str(run_id),
+        live=live,
+        extra_body=loop_snap.get("extra_body"),
+        cancel_flag=lambda: sync_to_async(_cancel_flag)(run_id),
+    )
+    # Reaproveita o tradutor de eventos terminais do caminho inicial.
+    async for ev in _translate_resume(run_id, _emit, agen, snap):
+        yield ev
+
+
+def _tool_limits():
+    from chat.services.tools import limits
+
+    return limits
+
+
+async def _translate_resume(run_id, _emit, agen, snapshot):
+    async for ev in agen:
+        kind = ev["type"]
+        if kind == "turn_paused":
+            snapshot["tool_loop"] = {
+                "pending": ev["pending"],
+                "loop": ev["loop"],
+                "model": snapshot.get("requested_model") or "",
+                "system": (snapshot.get("tool_loop") or {}).get("system") or "",
+                "max_tokens": (snapshot.get("tool_loop") or {}).get("max_tokens") or 1024,
+                "extra_body": (snapshot.get("tool_loop") or {}).get("extra_body"),
+            }
+            text = "".join(ev["loop"]["text_parts"])
+            await sync_to_async(_set_paused)(run_id, snapshot, text)
+            yield _emit({"type": "run_paused", "state": "awaiting_approval"})
+            return
+        if kind == "turn_done":
+            stopped = ev.get("stopped", "end_turn")
+            text = ev.get("final_text", "")
+            usage = ev.get("usage") or None
+            if stopped == "end_turn":
+                await sync_to_async(_finalize)(
+                    run_id, state="done", text=text, msg_state="ok",
+                    usage=usage, stop_reason=ev.get("stop_reason"),
+                )
+                yield _emit(
+                    {
+                        "type": "done",
+                        "message_id": await sync_to_async(_assistant_uuid)(run_id),
+                        "text": text,
+                        "stop_reason": ev.get("stop_reason"),
+                        "truncated": False,
+                        "model": snapshot.get("requested_model"),
+                        "input_tokens": (usage or {}).get("input_tokens"),
+                        "output_tokens": (usage or {}).get("output_tokens"),
+                    }
+                )
+            elif stopped == "cancelled":
+                await sync_to_async(_finalize)(
+                    run_id, state="cancelled", text=text, msg_state="cancelled",
+                    error_code="cancelled",
+                    error_message="Geração interrompida pelo usuário.",
+                )
+                yield _emit(
+                    {"type": "cancelled", "message": "Geração interrompida pelo usuário."}
+                )
+            else:
+                code = "tool_limit" if stopped == "limit" else "tool_budget"
+                message = "Limite do ciclo de ferramentas atingido."
+                await sync_to_async(_finalize)(
+                    run_id, state="failed", text=text,
+                    msg_state="failed" if not text else "partial",
+                    error_code=code, error_message=message,
+                )
+                yield _emit({"type": "error", "code": code, "message": message})
+            return
+        yield _emit(ev)
+
+
+def _mark_streaming(run_id: str) -> None:
+    from django.utils import timezone
+
+    GenerationRun.objects.filter(uuid=run_id).update(
+        state="streaming", last_heartbeat=timezone.now()
+    )
