@@ -1,9 +1,30 @@
-"""Entidades RAG (M1: bases, documentos, versões, jobs)."""
+"""Entidades RAG (M1: bases, documentos, versões, jobs; M2: chunks, perfis)."""
 
 import uuid
 
 from django.conf import settings
 from django.db import models
+
+
+class EmbeddingProfile(models.Model):
+    """Perfil de indexação: modelo/revisão/tokenizer/dimensão/prefixos (RAG-04)."""
+
+    model_id = models.CharField(max_length=200)
+    revision = models.CharField(max_length=64)
+    dim = models.PositiveIntegerField()
+    pipeline_version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["model_id", "revision", "pipeline_version"],
+                name="rag_profile_unique",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.model_id}@{self.revision[:12]} (v{self.pipeline_version})"
 
 
 class KnowledgeBase(models.Model):
@@ -13,6 +34,13 @@ class KnowledgeBase(models.Model):
     )
     name = models.CharField(max_length=120)
     active_revision = models.PositiveIntegerField(default=0)
+    active_profile = models.ForeignKey(
+        EmbeddingProfile,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -117,3 +145,44 @@ class IngestionJob(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["state", "lease_until"])]
+
+
+class Chunk(models.Model):
+    """Fragmento citável: texto + dica de busca + localizador (RAG-04)."""
+
+    uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    version = models.ForeignKey(
+        DocumentVersion, on_delete=models.CASCADE, related_name="chunks"
+    )
+    profile = models.ForeignKey(
+        EmbeddingProfile, on_delete=models.PROTECT, related_name="chunks"
+    )
+    order = models.PositiveIntegerField()
+    text = models.TextField()  # passagem original citável
+    context_hint = models.CharField(max_length=500, default="")  # só busca
+    search_text = models.TextField()  # hint + texto (representação de busca)
+    locator = models.JSONField(default=dict)
+    token_count = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["version", "profile", "order"], name="rag_chunk_unique"
+            )
+        ]
+        indexes = [models.Index(fields=["version", "profile", "order"])]
+
+
+class ChunkEmbedding(models.Model):
+    """Vetor float32 normalizado em BLOB: dim uint32 LE + float32 LE (RAG-04)."""
+
+    chunk = models.OneToOneField(
+        Chunk, on_delete=models.CASCADE, related_name="embedding"
+    )
+    profile = models.ForeignKey(
+        EmbeddingProfile, on_delete=models.PROTECT, related_name="embeddings"
+    )
+    vector = models.BinaryField()
+    dim = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)

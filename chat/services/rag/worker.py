@@ -62,26 +62,33 @@ def _set_state(job: IngestionJob, state: str, **extra) -> None:
 
 
 def _stale(job_uuid, worker_id: str) -> bool:
-    """Job cancelado/excluído ou de outra tentativa: não publica."""
+    """Job cancelado/excluído ou possuído por outro worker: não publica."""
     try:
         current = IngestionJob.objects.get(uuid=job_uuid)
     except IngestionJob.DoesNotExist:
         return True
-    return current.state in ("cancelled", "failed") or current.claimed_by != worker_id
+    if current.state in ("cancelled", "failed"):
+        return True
+    return bool(current.claimed_by) and current.claimed_by != worker_id
 
 
 def process_job(job_uuid, worker_id: str, *, storage_root: Path | None = None,
                 file_map: dict | None = None) -> str:
-    """Executa as fases M1 (extração). Retorna o estado final."""
+    """Executa extração → chunking → embeddings → publicação. Estado final."""
     from chat.services.rag.extract import extract_document
 
-    job = IngestionJob.objects.select_related("document", "version").get(uuid=job_uuid)
+    job = IngestionJob.objects.select_related(
+        "document", "document__base", "version"
+    ).get(uuid=job_uuid)
     version: DocumentVersion = job.version
     # Revalida posse: cancelado/excluído ou de outro worker não executa.
     if job.state not in ("queued", "extracting", "chunking", "embedding", "publishing"):
         return job.state
     if job.claimed_by and job.claimed_by != worker_id:
         return job.state
+    if job.state in ("chunking", "embedding", "publishing") and version.text:
+        # Reinício após extração: pula para a fase registrada.
+        return _continue_pipeline(job, worker_id)
     try:
         _set_state(job, "extracting", attempt=job.attempt + 1)
         if file_map and str(version.uuid) in file_map:
@@ -114,18 +121,134 @@ def process_job(job_uuid, worker_id: str, *, storage_root: Path | None = None,
             version.warnings = out.warnings
             version.extractor = out.extractor
             version.save(update_fields=["text", "locators", "warnings", "extractor"])
-            # M1 termina na extração validada; M2 continua chunking→publishing.
+        if _stale(job_uuid, worker_id):
+            return "cancelled"
+        return _continue_pipeline(job, worker_id)
+    except Exception as exc:
+        job.state = "failed"
+        job.error = f"{type(exc).__name__}: {str(exc)[:200]}"
+        job.save(update_fields=["state", "error", "updated_at"])
+        job.document.state = "failed"
+        job.document.save(update_fields=["state"])
+        return "failed"
+
+
+def _continue_pipeline(job: IngestionJob, worker_id: str) -> str:
+    """Chunking → embeddings → publicação, com checkpoint e guardas (M2)."""
+    from chat.models_rag import Chunk, ChunkEmbedding
+    from chat.services.rag import embed, publish
+    from chat.services.rag.chunk import chunk_extraction
+
+    version = job.version
+    try:
+        profile = publish.get_or_create_current_profile()
+        publish.check_profile_compatible(job.document.base, profile)
+        checkpoint = dict(job.checkpoint or {})
+
+        _set_state(job, "chunking")
+        if _stale(job.uuid, worker_id):
+            return "cancelled"
+        if "chunks_done" not in checkpoint:
+            encode = embed.get_tokenizer_encode()
+            ext = "." + version.filename.rsplit(".", 1)[-1].lower()
+            drafts = chunk_extraction(version.text, version.locators, ext, encode)
+            publish.check_quotas(job.document.owner, len(drafts))
+            Chunk.objects.filter(version=version, profile=profile).delete()
+            Chunk.objects.bulk_create(
+                [
+                    Chunk(
+                        version=version,
+                        profile=profile,
+                        order=d.order,
+                        text=d.text,
+                        context_hint=d.context_hint[:500],
+                        search_text=d.search_text,
+                        locator=d.locator,
+                        token_count=d.token_count,
+                    )
+                    for d in drafts
+                ],
+                batch_size=500,
+            )
+            checkpoint["chunks_done"] = len(drafts)
+            job.checkpoint = checkpoint
+            job.save(update_fields=["checkpoint", "updated_at"])
+        n_chunks = int(checkpoint.get("chunks_done", 0))
+        job.progress_total = max(n_chunks, 1)
+        job.save(update_fields=["progress_total", "updated_at"])
+        if _stale(job.uuid, worker_id):
+            return "cancelled"
+
+        _set_state(job, "embedding")
+        chunk_ids = list(
+            Chunk.objects.filter(version=version, profile=profile)
+            .order_by("order")
+            .values_list("id", flat=True)
+        )
+        done_ids = set(
+            ChunkEmbedding.objects.filter(
+                chunk_id__in=chunk_ids, profile=profile
+            ).values_list("chunk_id", flat=True)
+        )
+        pending = [cid for cid in chunk_ids if cid not in done_ids]
+        texts = {
+            cid: txt
+            for cid, txt in Chunk.objects.filter(id__in=pending).values_list(
+                "id", "search_text"
+            )
+        }
+        ordered = [texts[cid] for cid in pending]
+        for start in range(0, len(ordered), embed.EMBED_BATCH_SIZE):
+            if _stale(job.uuid, worker_id):
+                return "cancelled"
+            batch_ids = pending[start : start + embed.EMBED_BATCH_SIZE]
+            vecs = embed.encode_passages(ordered[start : start + len(batch_ids)])
+            ChunkEmbedding.objects.bulk_create(
+                [
+                    ChunkEmbedding(
+                        chunk_id=cid,
+                        profile=profile,
+                        vector=embed.pack_vector(vecs[i]),
+                        dim=embed.EMBED_DIM,
+                    )
+                    for i, cid in enumerate(batch_ids)
+                ]
+            )
+            job.progress_known = len(done_ids) + start + len(batch_ids)
+            job.checkpoint = {**checkpoint, "embed_done": job.progress_known}
+            job.save(
+                update_fields=["progress_known", "checkpoint", "updated_at"]
+            )
+        if _stale(job.uuid, worker_id):
+            return "cancelled"
+
+        _set_state(job, "publishing")
+        # Indexação lexical da versão provisória antes da validação.
+        from chat.services.rag import fts
+
+        fts.index_chunks(
+            list(
+                Chunk.objects.filter(version=version, profile=profile).values_list(
+                    "id", "search_text"
+                )
+            )
+        )
+        publish.publish_version(job, version, profile)
+        with transaction.atomic():
             job.state = "ready"
-            job.progress_known = 1
-            job.progress_total = 1
-            job.save(update_fields=["state", "progress_known", "progress_total", "updated_at"])
+            job.progress_known = max(n_chunks, 1)
+            job.progress_total = max(n_chunks, 1)
+            job.save(
+                update_fields=[
+                    "state",
+                    "progress_known",
+                    "progress_total",
+                    "updated_at",
+                ]
+            )
             doc = job.document
-            doc.state = "ready" if not out.warnings else "partial"
-            if doc.active_version_id is None:
-                doc.active_version = version
-                version.is_staging = False
-                version.save(update_fields=["is_staging"])
-            doc.save(update_fields=["state", "active_version"])
+            doc.state = "ready" if not version.warnings else "partial"
+            doc.save(update_fields=["state"])
         return "ready"
     except Exception as exc:
         job.state = "failed"
