@@ -5,6 +5,15 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from chat.models_tools import (  # noqa: F401 — registra modelos p/ migrations
+    MCPConnection,
+    ModelStep,
+    StudyNote,
+    ToolApproval,
+    ToolCatalogSnapshot,
+    ToolInvocation,
+)
+
 RUN_STATES = ("preparing", "streaming", "done", "failed", "cancelled", "interrupted", "abandoned")
 TERMINAL_RUN_STATES = ("done", "failed", "cancelled", "interrupted", "abandoned")
 MESSAGE_STATES = ("ok", "partial", "failed", "cancelled")
