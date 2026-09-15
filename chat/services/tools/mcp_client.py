@@ -209,8 +209,9 @@ async def _run_http(config: HttpConfig, timeout_s: float, operation):
 
 
 async def list_tools_http(config: HttpConfig, timeout_s: float = 20.0) -> DiscoveredTools:
-    from chat.services.tools import limits as _limits
     from mcp.types import PaginatedRequestParams
+
+    from chat.services.tools import limits as _limits
 
     async def _list(session, protocol: str):
         tools = []

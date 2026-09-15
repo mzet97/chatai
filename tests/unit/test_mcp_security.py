@@ -1,6 +1,5 @@
 """M4: Streamable HTTP + SSRF + credenciais + OAuth (T6/T12, sem rede externa)."""
 
-import os
 import socket
 
 import pytest

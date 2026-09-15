@@ -9,7 +9,7 @@ import urllib.request
 
 import pytest
 
-from chat.services.tools import mcp_client
+from chat.services.tools import mcp_client, ssrf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SERVER = os.path.join(ROOT, "mcp_servers", "study_lessons", "server.py")
@@ -54,5 +54,5 @@ async def test_http_descoberta_e_chamada(http_server):
 
 async def test_http_sem_flag_demo_rejeita(http_server):
     cfg = mcp_client.HttpConfig(url=http_server, allow_loopback_http=False)
-    with pytest.raises(Exception):
+    with pytest.raises(ssrf.Rejected):
         await mcp_client.list_tools_http(cfg)
