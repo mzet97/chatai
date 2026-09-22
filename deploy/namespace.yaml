@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chat-local
+  labels:
+    app.kubernetes.io/name: claude-chat-local
+    app.kubernetes.io/part-of: chat-local

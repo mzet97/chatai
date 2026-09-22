@@ -1,0 +1,96 @@
+# M6: web + migrate (initContainer) + expire_runs (sidecar diário via restart).
+# 1 réplica: SQLite validado com 1 worker; no homelab o banco é o PG
+# dedicado externo — mesma semântica, sem lock local.
+# IMAGEM: o operador constrói e publica (ex.: harbor.home.arpa/chat-local/web:TAG)
+# e substitui harbor.home.arpa/tese/chat-local:20260922-m6-4 na aplicação. Sem Docker neste repo (proibição ativa).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-local-web
+  namespace: chat-local
+  labels:
+    app.kubernetes.io/name: claude-chat-local
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # 1 réplica: evita 2 writers durante o rollout
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: claude-chat-local
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: claude-chat-local
+    spec:
+      imagePullSecrets:
+        - name: harbor-tese-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: migrate
+          image: harbor.home.arpa/tese/chat-local:20260922-m6-4
+          command: ["python", "manage.py", "migrate", "--noinput"]
+          envFrom:
+            - configMapRef:
+                name: chat-local-config
+            - secretRef:
+                name: chat-local-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      containers:
+        - name: web
+          image: harbor.home.arpa/tese/chat-local:20260922-m6-4
+          command:
+            [
+              "python",
+              "-m",
+              "uvicorn",
+              "config.asgi:application",
+              "--host",
+              "0.0.0.0",
+              "--port",
+              "8000",
+              "--workers",
+              "1",
+            ]
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: chat-local-config
+            - secretRef:
+                name: chat-local-secrets
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: chat.home.arpa
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: chat.home.arpa
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi

@@ -15,6 +15,8 @@ from dotenv import dotenv_values
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # CHAT_DOTENV_PATH: override documentado (ex.: teste de navegador hermético).
+# O .env é lido UMA VEZ no import (caminho quente por mensagem); edições no
+# arquivo exigem restart do processo. O ambiente do processo sempre vence.
 _file_env = dotenv_values(os.environ.get("CHAT_DOTENV_PATH") or BASE_DIR / ".env")
 
 DEFAULTS = {
@@ -57,7 +59,13 @@ def resolve_option(name: str, conversation_value=None, ui_value=None) -> tuple[s
 
 def resolve_int(name: str, conversation_value=None, ui_value=None) -> tuple[int, str]:
     raw, origin = resolve_option(name, conversation_value, ui_value)
-    return int(raw), origin
+    try:
+        return int(raw), origin
+    except (ValueError, TypeError):
+        # Valor inparseável (env/.env corrompido ou corpo adulterado):
+        # cai para o padrão em vez de estourar 500. Entrada de usuário
+        # é barrada com 400 na borda (PATCH); aqui é defesa em profundidade.
+        return int(DEFAULTS.get(name, 0)), "default"
 
 
 # --- credencial ---
@@ -135,12 +143,12 @@ def validate_base_url(url: str, trusted_hosts: tuple[str, ...] = ("api.anthropic
     host = (parsed.hostname or "").lower()
     if not host:
         raise ValueError("endpoint sem host válido")
+    if parsed.username or parsed.password:
+        raise ValueError("endpoint não pode embutir credenciais")
     if host in ("127.0.0.1", "localhost") and parsed.scheme == "https":
         return url  # permitido para testes locais com TLS
     if host not in trusted_hosts:
         raise ValueError(f"host '{host}' fora da allowlist do servidor")
-    if parsed.username or parsed.password:
-        raise ValueError("endpoint não pode embutir credenciais")
     return url
 
 

@@ -1,7 +1,5 @@
 """Envio (reserva) e retry explícito. A execução ocorre no GET /stream (SSE)."""
 
-import json
-
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
@@ -12,7 +10,9 @@ from chat.services.generation import (
     reserve_run,
     retry_info,
 )
+from chat.services.images import check_conversation_quota, validate_message_images
 from chat.views import api_conversations
+from chat.views._body import parse_body
 from chat.views._scoping import owned_conversation
 
 
@@ -29,10 +29,26 @@ def conversation_messages(request, conv_uuid):
 @require_http_methods(["POST"])
 def send_message(request, conv_uuid):
     conv = owned_conversation(request.user, conv_uuid)
-    body = json.loads(request.body or "{}")
+    body, err = parse_body(request)
+    if err is not None:
+        return err
     content = (body.get("content") or "").strip()
     key = (body.get("idempotency_key") or "").strip()
-    if not content:
+    try:
+        images = validate_message_images(body.get("images"))
+    except ValueError as exc:
+        return JsonResponse({"code": "validation", "message": str(exc)}, status=400)
+    if images:
+        stored = list(conv.messages.values_list("blocks", flat=True))
+        try:
+            check_conversation_quota(
+                stored,
+                new_count=len(images),
+                new_bytes=sum(len(i.get("data") or "") * 3 // 4 for i in images),
+            )
+        except ValueError as exc:
+            return JsonResponse({"code": "quota", "message": str(exc)}, status=429)
+    if not content and not images:
         return JsonResponse({"code": "validation", "message": "Conteúdo vazio."}, status=400)
     if len(content) > 100_000:
         return JsonResponse(
@@ -43,7 +59,9 @@ def send_message(request, conv_uuid):
             {"code": "validation", "message": "idempotency_key obrigatória."}, status=400
         )
     try:
-        run, created, _ = reserve_run(conversation=conv, content=content, idempotency_key=key)
+        run, created, _ = reserve_run(
+            conversation=conv, content=content, idempotency_key=key, images=images
+        )
     except IdempotencyConflict:
         return JsonResponse(
             {"code": "conflict", "message": "Mesma chave com conteúdo diferente."}, status=409
@@ -73,7 +91,9 @@ def retry_message(request, conv_uuid, msg_uuid):
     ok, reason = retry_info(conversation=conv, user_message=msg)
     if not ok:
         return JsonResponse({"code": "validation", "message": reason}, status=400)
-    body = json.loads(request.body or "{}")
+    body, err = parse_body(request)
+    if err is not None:
+        return err
     key = (body.get("idempotency_key") or "").strip()
     if not key:
         return JsonResponse(

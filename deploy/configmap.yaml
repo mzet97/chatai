@@ -1,0 +1,16 @@
+# M6: configuração NÃO secreta do perfil homelab.
+# Segredos (PGPASSWORD, DJANGO_SECRET_KEY, ANTHROPIC_API_KEY, OIDC_*)
+# vivem no Secret `chat-local-secrets`, criado pelo operador fora do repo.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-local-config
+  namespace: chat-local
+data:
+  AI_PROVIDER: "anthropic"
+  OPENAI_ENABLED: "false"
+  DB_ENGINE: "postgres"
+  PGPORT: "5432"
+  PGSSLMODE: "prefer"
+  DJANGO_DEBUG: "false"
+  DJANGO_ALLOWED_HOSTS: "chat.home.arpa"

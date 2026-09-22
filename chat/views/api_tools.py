@@ -30,12 +30,11 @@ def conversation_tools(request, conv_uuid):
             }
         )
     if request.method == "PUT":
-        try:
-            body = json.loads(request.body or "{}")
-        except ValueError:
-            return JsonResponse(
-                {"code": "validation", "message": "JSON inválido."}, status=400
-            )
+        from chat.views._body import parse_body
+
+        body, err = parse_body(request)
+        if err is not None:
+            return err
         enabled = body.get("enabled", [])
         if not isinstance(enabled, list) or not all(
             isinstance(s, str) for s in enabled
@@ -77,10 +76,11 @@ def approval_decide(request, run_uuid, approval_id):
     from chat.models_tools import ToolApproval
 
     run = owned_run(request.user, run_uuid)
-    try:
-        body = json.loads(request.body or "{}")
-    except ValueError:
-        return JsonResponse({"code": "validation", "message": "JSON inválido."}, status=400)
+    from chat.views._body import parse_body
+
+    body, err = parse_body(request)
+    if err is not None:
+        return err
     decision = body.get("decision")
     key = (body.get("idempotency_key") or "").strip() or None
     try:

@@ -1,7 +1,5 @@
 """Configurações (RF-05), diagnóstico (RF-06) e catálogo (RF-07)."""
 
-import json
-
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
@@ -17,6 +15,8 @@ from chat.services.model_catalog import (
     refresh_catalog,
     resolve_model,
 )
+from chat.services.providers import get_provider
+from chat.views._body import parse_body
 
 # Seam de teste (como em api_runs): produção usa o SDK real.
 CLIENT_FACTORY = None
@@ -47,7 +47,9 @@ def settings_api(request):
 @require_http_methods(["POST"])
 def settings_save(request):
     """Campo de escrita para a chave: vazio = manter; remoção em ação própria."""
-    body = json.loads(request.body or "{}")
+    body, err = parse_body(request)
+    if err is not None:
+        return err
     ui = _ui(request.user)
 
     new_base = (body.get("base_url") or "").strip()
@@ -133,7 +135,9 @@ def settings_remove_key(request):
 async def settings_diagnose(request):
     from asgiref.sync import sync_to_async
 
-    body = json.loads(request.body or "{}")
+    body, err = parse_body(request)
+    if err is not None:
+        return err
     resolved, cred = await sync_to_async(resolve_for_user)(request.user)
     client = CLIENT_FACTORY(request.user) if CLIENT_FACTORY else None
     steps = await _run_diagnose(resolved, cred, client)
@@ -143,9 +147,7 @@ async def settings_diagnose(request):
     generation = None
     if include_generation:
         if client is None:
-            from chat.services.anthropic_client import build_client
-
-            client = build_client(
+            client = get_provider().build_client(
                 api_key=cred.secret,
                 base_url=resolved.base_url,
                 timeout_seconds=resolved.timeout_seconds,
@@ -186,9 +188,7 @@ async def models_api(request):
     if request.method == "POST":
         client = CLIENT_FACTORY(request.user) if CLIENT_FACTORY else None
         if client is None:
-            from chat.services.anthropic_client import build_client
-
-            client = build_client(
+            client = get_provider().build_client(
                 api_key=cred.secret,
                 base_url=resolved.base_url,
                 timeout_seconds=resolved.timeout_seconds,

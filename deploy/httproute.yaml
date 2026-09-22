@@ -1,0 +1,22 @@
+# M6: exposição via Gateway API no homelab-gateway (kube-system/Traefik).
+# Host provisório chat.home.arpa (TLS *.home.arpa via cert-manager, como
+# as demais rotas). O operador ajusta o hostname antes do apply se preferir.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: chat-local-web
+  namespace: chat-local
+spec:
+  parentRefs:
+    - name: homelab-gateway
+      namespace: kube-system
+  hostnames:
+    - chat.home.arpa
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: chat-local-web
+          port: 80

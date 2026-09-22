@@ -66,7 +66,9 @@ async def run_turn(
     usage = {"input_tokens": None, "output_tokens": None}
     started = time.monotonic()
     active_ctx = ctx or ExecutionContext(user_id=0, conversation_id=0)
-    known = {r.anthropic_name: r for r in (catalog or all_records())}
+    # None = sem filtro (chamadas diretas/testes); [] = nenhuma ferramenta.
+    # Nunca expandir vazio para o catálogo inteiro: prefs vazias são default.
+    known = {r.anthropic_name: r for r in (all_records() if catalog is None else catalog)}
 
     while True:
         if calls >= limits.MAX_MODEL_STEPS:

@@ -28,6 +28,19 @@ def index(request, conv_uuid=None):
 
 
 @login_required
+@login_required
+def knowledge_page(request):
+    """Área Conhecimento (M5): bases, upload, estados, exclusão."""
+    return render(request, "chat/knowledge.html", {})
+
+
+@login_required
+def agents_page(request):
+    """Página Agentes (M1/AG-6): cadastro, versões, publicar, arquivar, exemplos."""
+    return render(request, "chat/agents.html", {})
+
+
+@login_required
 def settings_page(request):
     from chat.models import ConnectionSettings
 

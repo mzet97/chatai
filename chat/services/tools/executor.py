@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from chat.services.anthropic_client import classify_error
 from chat.services.tools import limits
 from chat.services.tools.context import ExecutionContext
 from chat.services.tools.local_tools import HANDLERS
@@ -95,12 +96,20 @@ async def execute(
                 "ok": False,
                 "error": {"code": "timeout", "message": "Ferramenta excedeu o tempo."},
             }
+        except Exception as exc:
+            code, message = classify_error(exc)
+            return {"ok": False, "error": {"code": code, "message": message}}
         if not result.get("ok"):
             return result
         text, truncated = normalize_result(str(result.get("text", "")))
         out: dict[str, Any] = {"ok": True, "text": text}
         if truncated:
             out["truncated"] = True
+        images = _validated_result_images(rec, result)
+        if images is not None:
+            if isinstance(images, dict):  # erro de gate/validação
+                return images
+            out["images"] = images
         return out
     handler = HANDLERS.get(anthropic_name)
     if handler is None:
@@ -115,13 +124,48 @@ async def execute(
             "ok": False,
             "error": {"code": "timeout", "message": "Ferramenta excedeu o tempo."},
         }
+    except Exception as exc:
+        code, message = classify_error(exc)
+        return {"ok": False, "error": {"code": code, "message": message}}
     if not result.get("ok"):
         return result
     text, truncated = normalize_result(str(result.get("text", "")))
     out: dict[str, Any] = {"ok": True, "text": text}
     if truncated:
         out["truncated"] = True
+    images = _validated_result_images(rec, result)
+    if images is not None:
+        if isinstance(images, dict):  # erro de gate/validação
+            return images
+        out["images"] = images
     return out
+
+
+def _validated_result_images(rec, result: dict):
+    """Gate de capacidade + validação binária (M4/TV-5.2).
+
+    Sem chave `images` no resultado: None (caminho de texto inalterado).
+    Com imagens e sem capacidade correspondente: dict de erro
+    `images_not_supported`. Com capacidade: lista canônica validada
+    (teto binário próprio; Base64 nunca truncado) ou dict de erro
+    `invalid_images`.
+    """
+    if not result.get("images"):
+        return None
+    if not rec.supports_images:
+        return {
+            "ok": False,
+            "error": {
+                "code": "images_not_supported",
+                "message": "Ferramenta sem capacidade de resultado em imagem.",
+            },
+        }
+    from chat.services import images as _images
+
+    try:
+        return _images.validate_tool_result_images(result.get("images"))
+    except ValueError as exc:
+        return {"ok": False, "error": {"code": "invalid_images", "message": str(exc)}}
 
 
 async def execute_authorized(
