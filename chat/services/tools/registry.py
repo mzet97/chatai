@@ -27,6 +27,10 @@ class ToolRecord:
     approval: str  # "auto" | "require" | "deny"
     scope: str = ""  # alias da conexão MCP; vazio no local
     extra: dict = field(default_factory=dict)
+    # Capacidade de resultado binário (M4/TV-5.2): só ferramentas com
+    # capacidade correspondente podem devolver imagens; as demais têm
+    # qualquer carga binária recusada (fail closed).
+    supports_images: bool = False
 
     @property
     def anthropic_name(self) -> str:

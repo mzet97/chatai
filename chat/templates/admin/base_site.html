@@ -1,0 +1,20 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Admin — claude-chat-local{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+  <a href="{% url 'admin:index' %}">claude-chat-local · Admin</a>
+</h1>
+{% endblock %}
+
+{% block nav-global %}
+<a href="{% url 'index' %}">Voltar ao chat</a>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'chat/css/tokens.css' %}">
+<link rel="stylesheet" href="{% static 'chat/css/admin.css' %}">
+{% endblock %}

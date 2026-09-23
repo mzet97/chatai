@@ -1,5 +1,5 @@
 // Cliente HTTP JSON com CSRF (cookie `csrftoken` do Django).
-function csrfToken() {
+export function csrfToken() {
   const m = document.cookie.match(/(?:^|; )csrftoken=([^;]*)/);
   return (m && decodeURIComponent(m[1])) || window.CSRF_TOKEN || "";
 }

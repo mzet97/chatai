@@ -181,6 +181,11 @@ class ModelStep(models.Model):
     stop_reason = models.CharField(max_length=50, null=True, blank=True)
     input_tokens = models.PositiveIntegerField(null=True, blank=True)
     output_tokens = models.PositiveIntegerField(null=True, blank=True)
+    # Cache observado (AG-5.2/M2): só tokens confirmados em Usage; null =
+    # desconhecido, nunca zero presumido. detail = breakdown por TTL.
+    cache_creation_input_tokens = models.PositiveIntegerField(null=True, blank=True)
+    cache_read_input_tokens = models.PositiveIntegerField(null=True, blank=True)
+    cache_creation_detail = models.JSONField(null=True, blank=True, default=None)
     tool_use_ids = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)
 

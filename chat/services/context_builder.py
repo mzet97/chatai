@@ -30,9 +30,40 @@ def _estimate_tokens(system: str, messages: list[dict]) -> int:
             chars += len(c)
         else:
             for b in c:
-                if isinstance(b, dict) and b.get("type") == "text":
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "text":
                     chars += len(b.get("text", ""))
+                elif b.get("type") == "search_result":
+                    for inner in b.get("content", None) or []:
+                        if isinstance(inner, dict) and inner.get("type") == "text":
+                            chars += len(inner.get("text", ""))
+                elif b.get("type") == "image":
+                    # base64 ~4/3 bytes; provedor conta ~1 token/750 bytes.
+                    chars += len((b.get("source") or {}).get("data", "")) // 250 + 200
     return chars // 4 + len(messages) * 8 + 16
+
+
+def user_content(msg: dict) -> str | list[dict]:
+    """Conteúdo de turno do usuário: str puro ou blocos text+image (M3)."""
+    images = msg.get("image_blocks") or []
+    if not images:
+        return msg["text"]
+    blocks: list[dict] = []
+    if msg.get("text"):
+        blocks.append({"type": "text", "text": msg["text"]})
+    for item in images:
+        blocks.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": item["media_type"],
+                    "data": item["data"],
+                },
+            }
+        )
+    return blocks
 
 
 def build_turns(history: list[dict]) -> tuple[list[dict], list[dict]]:
@@ -72,6 +103,7 @@ async def build_context(
     input_budget: int,
     strict: bool = False,
     count_tokens=None,
+    current_blocks: list[dict] | None = None,
 ) -> BuiltContext:
     """Monta payload com orçamento. count_tokens: async (model, system, messages) -> int.
 
@@ -79,9 +111,11 @@ async def build_context(
     - Falha na contagem no fluxo padrão: levanta CountFailed (erro recuperável).
     - strict: em vez de reduzir, levanta BudgetExceeded.
     - system+atual acima do limite: levanta BudgetExceeded sem chamar a API.
+    - current_blocks: mensagem atual em blocos (ex.: search_result RAG).
     """
     turns, _ = build_turns(history)
-    current_msg = {"role": "user", "content": current_text}
+    current_content = current_blocks if current_blocks is not None else current_text
+    current_msg = {"role": "user", "content": current_content}
 
     async def count(sys: str, msgs: list[dict]) -> int:
         if count_tokens is not None:
@@ -106,7 +140,7 @@ async def build_context(
             candidate = []
             for u, a in kept:
                 candidate += [
-                    {"role": "user", "content": u["text"]},
+                    {"role": "user", "content": user_content(u)},
                     {"role": "assistant", "content": a["text"]},
                 ]
             total = await count(system, candidate + [current_msg])
@@ -119,7 +153,7 @@ async def build_context(
         final_msgs = []
         for u, a in kept:
             final_msgs += [
-                {"role": "user", "content": u["text"]},
+                {"role": "user", "content": user_content(u)},
                 {"role": "assistant", "content": a["text"]},
             ]
         final_msgs.append(current_msg)

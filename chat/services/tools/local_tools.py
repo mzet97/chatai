@@ -202,9 +202,19 @@ HANDLERS = {
     "local__list_study_notes": _list_study_notes,
 }
 
+try:
+    from chat.services.rag.tools import HANDLERS as _RAG_HANDLERS
+    from chat.services.rag.tools import tool_records as _rag_records
+
+    HANDLERS.update(_RAG_HANDLERS)
+    _RAG_RECORDS = _rag_records()
+except ImportError:
+    _RAG_RECORDS = []
+
 
 def all_records() -> list[ToolRecord]:
     return [
+        *_RAG_RECORDS,
         ToolRecord(
             stable_id="local:calculate",
             origin="local",

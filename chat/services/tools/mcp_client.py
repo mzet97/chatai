@@ -113,11 +113,43 @@ async def list_tools_stdio(config: StdioConfig, timeout_s: float = 20.0) -> Disc
     return await _run_stdio(config, min(timeout_s, _limits.TOOL_TIMEOUT_S), _list)
 
 
+def split_result_blocks(content) -> tuple[list[str], list[dict], bool]:
+    """Separa texto de imagens no resultado MCP (M4/TV-5.2).
+
+    Blocos `image` (data base64 + mimeType) viram [{media_type, data}]
+    para validação servidor (executor); áudio/links continuam fora de
+    escopo, sem download. Aceita objetos do SDK ou dicts.
+    """
+    texts: list[str] = []
+    images: list[dict] = []
+    unsupported = False
+    for block in content or []:
+        if isinstance(block, dict):
+            btype = block.get("type", "")
+            get = block.get
+        else:
+            btype = getattr(block, "type", "")
+
+            def get(k, d=None, _block=block):
+                return getattr(_block, k, d)
+        if btype == "text":
+            texts.append(get("text", "") or "")
+        elif btype == "image":
+            data, mime = get("data"), get("mimeType") or get("mime_type")
+            if isinstance(data, str) and data and isinstance(mime, str) and mime:
+                images.append({"media_type": mime, "data": data})
+            else:
+                unsupported = True
+        else:
+            unsupported = True
+    return texts, images, unsupported
+
+
 async def call_tool_stdio(
     config: StdioConfig, name: str, args: dict, timeout_s: float = 20.0
 ) -> dict:
-    """Executa e normaliza: texto concatenado, `isError` preservado, resto
-    não suportado (imagens/áudio/links) identificado, sem download."""
+    """Executa e normaliza: texto concatenado, imagens extraídas (M4),
+    `isError` preservado, resto não suportado identificado, sem download."""
     from chat.services.tools import executor as _executor
     from chat.services.tools import limits as _limits
 
@@ -136,14 +168,7 @@ async def call_tool_stdio(
             "ok": False,
             "error": {"code": "transport", "message": f"Falha no MCP: {type(exc).__name__}."},
         }
-    texts: list[str] = []
-    unsupported = False
-    for block in result.content or []:
-        btype = getattr(block, "type", "")
-        if btype == "text":
-            texts.append(getattr(block, "text", ""))
-        else:
-            unsupported = True
+    texts, images, unsupported = split_result_blocks(getattr(result, "content", None))
     structured = getattr(result, "structuredContent", None)
     if structured and not texts:
         import json
@@ -155,6 +180,8 @@ async def call_tool_stdio(
     text, truncated = _executor.normalize_result(text)
     failed = bool(getattr(result, "is_error", False) or getattr(result, "isError", False))
     out: dict[str, Any] = {"ok": not failed, "text": text}
+    if images:
+        out["images"] = images
     if out["ok"] is False:
         out = {
             "ok": False,
@@ -259,14 +286,7 @@ async def call_tool_http(
             "ok": False,
             "error": {"code": "transport", "message": f"Falha no MCP: {type(exc).__name__}."},
         }
-    texts: list[str] = []
-    unsupported = False
-    for block in result.content or []:
-        btype = getattr(block, "type", "")
-        if btype == "text":
-            texts.append(getattr(block, "text", ""))
-        else:
-            unsupported = True
+    texts, images, unsupported = split_result_blocks(getattr(result, "content", None))
     structured = getattr(result, "structured_content", None)
     if structured and not texts:
         import json
@@ -278,6 +298,8 @@ async def call_tool_http(
     text, truncated = _executor.normalize_result(text)
     failed = bool(getattr(result, "is_error", False) or getattr(result, "isError", False))
     out: dict[str, Any] = {"ok": not failed, "text": text}
+    if images:
+        out["images"] = images
     if out["ok"] is False:
         out = {
             "ok": False,
@@ -304,6 +326,7 @@ def records_for(
                 input_schema=tool.get("inputSchema") or {"type": "object"},
                 version=version,
                 approval="require",
+                supports_images=True,  # M4/TV-5.2: binário validado no executor
             )
         )
     return recs

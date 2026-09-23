@@ -5,11 +5,24 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from chat.models_agents import (  # noqa: F401 — registra modelos de agentes p/ migrations
+    AgentDefinition,
+    AgentRun,
+    AgentVersion,
+    BudgetLedger,
+    CacheObservation,
+    Delegation,
+    RunEvent,
+)
 from chat.models_rag import (  # noqa: F401 — registra modelos RAG p/ migrations
     Document,
     DocumentVersion,
     IngestionJob,
     KnowledgeBase,
+    OutboxMessage,
+)
+from chat.models_runtime import (  # noqa: F401 — registra diário M2 p/ migrations
+    RunJournalEvent,
 )
 from chat.models_tools import (  # noqa: F401 — registra modelos p/ migrations
     MCPConnection,
@@ -21,6 +34,8 @@ from chat.models_tools import (  # noqa: F401 — registra modelos p/ migrations
 )
 
 RUN_STATES = (
+    "queued",  # M2: comando aceito, aguardando worker (dono vê; aba pode fechar)
+    "running",  # M2: reivindicado pelo worker; preparing/streaming são sub-etapas
     "preparing",
     "streaming",
     "awaiting_approval",
@@ -52,6 +67,43 @@ class Conversation(models.Model):
         choices=[("low", "Baixo"), ("medium", "Médio"), ("high", "Alto")],
         default="medium",
     )
+    # Pensamento (TV-1): modo default = padrão do modelo, sem efeito até
+    # escolha explícita; nível salvo inicia em Médio. Migração não altera
+    # valores existentes nem atribui pensamento a respostas antigas.
+    thinking_mode = models.CharField(
+        max_length=10,
+        choices=[
+            ("default", "Padrão do modelo"),
+            ("disabled", "Desativado"),
+            ("enabled", "Ativado"),
+        ],
+        default="default",
+    )
+    thinking_level = models.CharField(
+        max_length=10,
+        choices=[("low", "Baixo"), ("medium", "Médio"), ("high", "Alto")],
+        default="medium",
+    )
+    thinking_budget = models.PositiveIntegerField(default=1024)
+    thinking_show_summary = models.BooleanField(default=False)
+    # Agentes (AG-1): modo da conversa + perfil selecionado. Chat preserva o
+    # comportamento existente; sem perfil, sem delegação.
+    agent_mode = models.CharField(
+        max_length=10,
+        choices=[("chat", "Chat"), ("agent", "Agente"), ("team", "Equipe")],
+        default="chat",
+    )
+    agent_definition = models.ForeignKey(
+        "chat.AgentDefinition",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="conversations",
+    )
+    # Cache (AG-5.1/M2): override da conversa sobre o perfil. "" = sem
+    # override (vale a versão do agente → padrões). Validado no PATCH.
+    cache_mode = models.CharField(max_length=20, default="", blank=True)
+    cache_ttl = models.CharField(max_length=5, default="", blank=True)
     response_mode = models.CharField(
         max_length=10,
         choices=[("streaming", "Streaming"), ("complete", "Completa")],
@@ -134,6 +186,9 @@ class GenerationRun(models.Model):
     )  # código estável, sanitizado
     error_message = models.CharField(max_length=500, null=True, blank=True)
     worker_pid = models.IntegerField(null=True, blank=True)
+    claimed_by = models.CharField(
+        max_length=100, default="", blank=True
+    )  # M2: dono do claim (compare-and-set); fencing token fica p/ M3
     cancel_requested = models.BooleanField(default=False)
     last_heartbeat = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(auto_now_add=True)

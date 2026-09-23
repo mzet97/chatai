@@ -51,6 +51,16 @@ def test_uvicorn_serves_app_and_static(tmp_path):
             with urllib.request.urlopen(f"http://127.0.0.1:8129/{path}", timeout=5) as r:
                 assert r.status == 200, path
                 assert len(r.read()) > 100, path
+        # Frescor: o servido (STATIC_ROOT) deve ser idêntico à fonte; após
+        # editar CSS/JS, rerode `collectstatic --noinput` (botão morto = staleness).
+        for src in (
+            "chat/static/chat/js/chat.js",
+            "chat/static/chat/css/app.css",
+        ):
+            url_path = src.removeprefix("chat/")  # static/chat/...
+            with urllib.request.urlopen(f"http://127.0.0.1:8129/{url_path}", timeout=5) as r:
+                served = r.read()
+            assert served == (ROOT / src).read_bytes(), f"stale: {src}"
     finally:
         proc.terminate()
         proc.wait(timeout=15)

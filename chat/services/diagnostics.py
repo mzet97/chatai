@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from chat.services import configuration as cfg
-from chat.services.anthropic_client import build_client, classify_error
+from chat.services.anthropic_client import classify_error
+from chat.services.providers import get_provider
 
 
 async def diagnose(
@@ -33,7 +34,7 @@ async def diagnose(
         real = (
             client
             if client is not None
-            else build_client(
+            else get_provider().build_client(
                 api_key=secret, base_url=base_url, timeout_seconds=timeout, max_retries=retries
             )
         )

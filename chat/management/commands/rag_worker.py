@@ -5,6 +5,7 @@ import time
 
 from django.core.management.base import BaseCommand
 
+from chat.services.rag.heartbeat import beat
 from chat.services.rag.worker import claim_next_job, process_job
 
 
@@ -20,6 +21,7 @@ class Command(BaseCommand):
         worker_id = f"{socket.gethostname()}:{__import__('os').getpid()}"
         self.stdout.write(f"rag_worker {worker_id}: aguardando jobs (offline = fila parada).")
         while True:
+            beat(worker_id)
             job = claim_next_job(worker_id)
             if job is None:
                 if options["once"]:

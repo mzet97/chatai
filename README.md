@@ -61,7 +61,10 @@ passa pela allowlist do servidor (`api.anthropic.com`).
 .venv/bin/ruff check chat config tests && .venv/bin/ruff format --check chat config tests
 .venv/bin/python manage.py backup_db --out backups/chat.sqlite3
 .venv/bin/python manage.py restore_db --src backups/chat.sqlite3  # com a app parada
+.venv/bin/python manage.py dispatch_outbox --once  # entrega outbox de ingestão
+.venv/bin/python manage.py preflight --format json  # checagem somente-leitura
 ```
+Health público (probes): `GET /api/health` — sem auth, sem segredos, sem paid calls.
 
 Teste pago opcional (desativado por padrão, 2 chamadas pequenas):
 `CHAT_LIVE_TEST=1 ANTHROPIC_API_KEY=... python -m pytest tests/integration/test_live.py -q`.
@@ -75,8 +78,40 @@ Remover credenciais: Configurações → “Remover chave” (+ apague do `.env`
 - Chave nunca sai do backend (só vai à API no endpoint configurado); nunca em
   HTML/JS/JSON/logs. SQLite guarda só referência do Keychain.
 - Sem telemetria; sem CDN; sem preços/saldo inventados (só tokens observados).
-- Fora da v1 (backlog): anexos, OCR, RAG, ramificações,
+- Fora da v1 (backlog): OCR, RAG, ramificações,
   compartilhamento público, sincronização, resumo por IA, custo estimado.
+
+## Imagens anexadas (visão — não OCR)
+
+Botão **Anexar imagem** no compositor (também arrastar/soltar e colar):
+seletor nativo, miniaturas com **Remover**, envio junto da pergunta.
+Destino **Anexo da conversa**, separado de **Documento da base RAG**
+(imagem nunca vira documento indexado; Base64 nunca passa pelo encoder
+textual; sem chamada oculta de descrição/OCR).
+
+**Limites.** 4 imagens/mensagem, 5 MiB e 20 MP por arquivo, 20 MiB
+serializados/mensagem; quotas por conversa: 40 imagens, 80 MiB
+(extra → `429 quota`). Formatos: JPEG, PNG, WebP, GIF estático
+(animado recusado com explicação). Servidor revalida tudo com Pillow;
+variante normalizada (EXIF aplicado, metadados descartados) é o que vai
+ao modelo como bloco `image` Base64 — montado só na serialização.
+
+**Retenção.** O upload (`POST /api/images`) é stateless: nada persiste
+até o envio. Após enviado, as imagens vivem em `Message.blocks` no
+SQLite local. Listagem/histórico devolve só metadados + miniatura (sem
+Base64); exportação (MD/JSON) não inclui imagem alguma. Execuções
+abandonadas expiram sem tocar nas ativas (automático no startup +
+`python manage.py expire_runs`); modelo sem visão bloqueia a geração
+com oferta (trocar modelo / remover anexos), sem descarte silencioso.
+
+**Não confiável por definição.** Nome do arquivo, texto/QR dentro dos
+pixels e qualquer instrução aparente na imagem são **dados, nunca
+ordem**: nunca viram autorização, nunca HTML (nomes escapados na UI) e
+nomes com padrão de segredo (`sk-ant-…`, `api_key=…`) são recusados
+para não vazar no eco. **Visão ≠ OCR**: o modelo enxerga pixels, não há
+extração de texto local. **Effort ≠ temperatura**: nível de pensamento
+(Baixo/Médio/Alto → `output_config.effort`) não tem nada a ver com
+variação/temperatura.
 
 ## Ferramentas e MCP (didático)
 
@@ -112,3 +147,28 @@ servidores controlados reais).
 stdio confia no binário listado. `unknown` após queda sem confirmação (sem
 retry, sem exatamente-uma-vez entre sistemas). **Não executado:** Keychain
 ao vivo, API Anthropic real paga, OAuth ao vivo contra provedor externo.
+
+## Agentes e Equipe (perfis versionados)
+
+**Página Agentes** (`/agents/`): CRUD de perfis, rascunho editável, versão
+publicada imutável, arquivar (impede nova seleção, preserva histórico) e
+**Criar agentes de exemplo** idempotente (Geral/Pesquisador/Revisor/
+Coordenador). Publicar exige modelo definido; perfil incompleto não delega.
+
+**Seletor Chat/Agente/Equipe** (cabeçalho do chat, por conversa): Chat =
+comportamento atual, sem delegação; Agente = instruções + modelo + pensamento
+do perfil; Equipe = coordenador + até 2 especialistas (só leitura,
+profundidade 1). O perfil pode ser pré-escolhido ainda em Chat (inerte).
+Mudança bloqueada com geração/aprovação pendente.
+
+**Trilha e métricas.** Modo Equipe mostra aviso no chat; os Detalhes da
+execução exibem agente aplicado (perfil/revisão/origens), trilha
+(solicitada → filhas → eventos), orçamento da árvore e cache (solicitado ×
+elegível × confirmado; só tokens, sem estimativa monetária). Filhos nunca
+delegam nem escrevem sem aprovação; citação do filho é dado, nunca prova.
+
+**Avaliação.** `python manage.py agents_eval` roda 24 tarefas sintéticas
+(individual × equipe, sem pagas) e grava `docs/agents/eval.md`. Fluxo real
+no navegador: `pytest tests/e2e/test_agents_browser.py -q`. Detalhes em
+`docs/agents/` (spec, plan, architecture, contracts, capabilities, adr,
+threats, eval).

@@ -1,0 +1,90 @@
+/* Skin do Django Admin com os tokens do app (tokens.css).
+   Claro/escuro acompanham o `data-theme` do próprio admin. */
+
+:root {
+  --primary: var(--accent);
+  --secondary: var(--accent-hover);
+  --accent: var(--accent);
+  --primary-fg: var(--on-accent);
+  --header-color: var(--text-primary);
+  --header-branding-color: var(--accent);
+  --header-bg: var(--bg-sidebar);
+  --header-link-color: var(--text-secondary);
+  --breadcrumbs-fg: var(--text-secondary);
+  --breadcrumbs-link-fg: var(--text-primary);
+  --breadcrumbs-bg: var(--bg-sidebar);
+  --link-fg: var(--accent);
+  --link-hover-color: var(--accent-hover);
+  --link-selected-fg: var(--accent-hover);
+  --hairline-color: var(--border-subtle);
+  --border-color: var(--border-subtle);
+  --body-fg: var(--text-primary);
+  --body-bg: var(--bg-app);
+  --body-quiet-color: var(--text-secondary);
+  --darkened-bg: var(--bg-sidebar);
+  --selected-bg: var(--bg-selected);
+  --button-fg: var(--on-accent);
+  --button-bg: var(--accent);
+  --button-hover-bg: var(--accent-hover);
+  --default-button-bg: var(--accent-hover);
+  --default-button-hover-bg: var(--accent);
+  --close-button-bg: var(--text-secondary);
+  --close-button-hover-bg: var(--text-primary);
+  --delete-button-bg: var(--danger);
+  --delete-button-hover-bg: var(--danger);
+  --object-tools-fg: var(--on-accent);
+  --object-tools-bg: var(--accent);
+  --object-tools-hover-bg: var(--accent-hover);
+  --font-family-primary: var(--font-ui);
+  --font-family-monospace: var(--font-code);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-ui);
+}
+
+#site-name a {
+  font-weight: 700;
+}
+
+#header #user-tools a {
+  border-bottom: none;
+}
+
+#nav-global a {
+  color: var(--accent);
+  margin-left: 1rem;
+}
+
+#header {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.button, input[type="submit"], input[type="button"], .submit-row input, a.button {
+  border-radius: var(--radius-control);
+}
+
+.module h2, .module caption, .inline-group h2 {
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+}
+
+div.breadcrumbs {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+#content-main .module, .inline-related {
+  border-radius: var(--radius-panel);
+}
+
+input, select, textarea {
+  border-radius: var(--radius-control);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}

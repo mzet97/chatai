@@ -1,0 +1,58 @@
+{% extends "chat/base.html" %}
+{% block title %}Conhecimento — claude-chat-local{% endblock %}
+{% block body %}
+<main id="knowledge">
+  <a class="back" href="{% url 'index' %}">← Voltar ao chat</a>
+  <h1>Conhecimento</h1>
+  <p class="local-note">Bases privadas: documentos, embeddings e buscas ficam neste computador. Somente os trechos
+    selecionados como evidência saem para a Anthropic na hora de responder.</p>
+
+  <section aria-label="Bases">
+    <h2>Bases</h2>
+    <form id="kb-create" aria-label="Criar base">
+      <label class="visually-hidden" for="kb-name">Nome da base</label>
+      <input id="kb-name" maxlength="120" placeholder="Nome da base…" autocomplete="off">
+      <button class="btn primary" type="submit">Criar</button>
+    </form>
+    <p id="kb-state" class="pop-state" role="status"></p>
+    <ul id="kb-list"></ul>
+  </section>
+
+  <p>
+    <button id="kb-upload-open" class="btn primary" type="button">Enviar documentos</button>
+  </p>
+  <section aria-label="Documentos" id="kb-docs-section" hidden>
+    <h2 id="kb-docs-title">Documentos</h2>
+    <p>
+      <button id="kb-rename" class="btn" type="button">Renomear base</button>
+      <button id="kb-delete" class="btn danger" type="button">Excluir base…</button>
+    </p>
+    <ul id="kb-docs"></ul>
+  </section>
+
+  <dialog id="kb-confirm" aria-labelledby="kb-confirm-title">
+    <form method="dialog" id="kb-confirm-form">
+      <h2 id="kb-confirm-title">Confirmar exclusão</h2>
+      <p id="kb-confirm-text"></p>
+      <menu>
+        <button type="submit" value="cancel">Manter</button>
+        <button type="submit" value="confirm" class="danger" id="kb-confirm-yes">Excluir</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="kb-doc" aria-labelledby="kb-doc-title">
+    <div>
+      <h2 id="kb-doc-title">Documento</h2>
+      <div id="kb-doc-body"></div>
+      <menu>
+        <button type="button" id="kb-doc-close" class="primary">Fechar</button>
+      </menu>
+    </div>
+  </dialog>
+</main>
+{% endblock %}
+{% block scripts %}
+{% load static %}
+<script type="module" src="{% static 'chat/js/knowledge.js' %}"></script>
+{% endblock %}

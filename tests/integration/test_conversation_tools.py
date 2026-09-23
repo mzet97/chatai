@@ -36,7 +36,8 @@ def _prefs_url(conversation):
 def test_prefs_default_vazio(logged_client, conversation):
     resp = logged_client.get(_prefs_url(conversation))
     assert resp.status_code == 200
-    assert resp.json() == {"enabled": [], "available": 4}
+    # M5 registra search_knowledge_base + read_knowledge_excerpt.
+    assert resp.json() == {"enabled": [], "available": 6}
 
 
 def test_put_valida_stable_ids(logged_client, conversation):

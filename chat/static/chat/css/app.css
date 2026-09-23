@@ -468,12 +468,67 @@ select.model-select:disabled {
   width: min(var(--reading-width), calc(100% - 2rem));
   margin: var(--space-2) auto var(--space-4);
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
   gap: var(--space-2);
   background: var(--bg-surface);
   border: 1px solid var(--border-control);
   border-radius: var(--radius-composer);
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+}
+
+#composer.over { border-color: var(--accent); }
+
+.composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+#btn-attach { flex-shrink: 0; align-self: flex-end; margin-bottom: 0.35rem; }
+
+#attach-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+}
+
+#attach-strip[hidden] { display: none; }
+
+.attach-thumb {
+  position: relative;
+  width: 4.5rem;
+  height: 4.5rem;
+  border: 1px solid var(--border-control);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+
+.attach-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.attach-rm {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  font-size: 0.6875rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-control);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.msg-images { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+
+.msg-images img {
+  width: 8rem;
+  height: 8rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-control);
 }
 
 #composer:focus-within { border-color: var(--accent); }
@@ -657,17 +712,20 @@ dialog menu button.danger { border-color: var(--danger); color: var(--danger); f
   min-height: 2.75rem;
 }
 #settings input[type="checkbox"] { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); }
-#settings .btn {
+#settings .btn, #knowledge .btn, #agents .btn, .upload-dialog .btn, .popover .btn {
   border: 1px solid var(--border-control);
   background: var(--bg-surface);
   border-radius: var(--radius-control);
   padding: 0.55rem 1rem;
   font-size: 0.875rem;
   min-height: 2.75rem;
+  color: var(--text-primary);
+  cursor: pointer;
 }
-#settings .btn:hover { background: var(--bg-hover); }
-#settings .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 650; }
-#settings .btn.primary:hover { background: var(--accent-hover); }
+#settings .btn:hover, #knowledge .btn:hover, #agents .btn:hover, .upload-dialog .btn:hover, .popover .btn:hover { background: var(--bg-hover); }
+#settings .btn.primary, #knowledge .btn.primary, #agents .btn.primary, .upload-dialog .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 650; }
+#settings .btn.primary:hover, #knowledge .btn.primary:hover, #agents .btn.primary:hover, .upload-dialog .btn.primary:hover { background: var(--accent-hover); }
+#settings .btn.danger, #knowledge .btn.danger, #agents .btn.danger { border-color: var(--danger); color: var(--danger); font-weight: 650; }
 #settings #effective { font-size: 0.875rem; }
 #settings #effective dt { font-weight: 650; margin-top: var(--space-2); }
 #settings #effective dd { margin: 0; color: var(--text-secondary); font-family: var(--font-code); font-size: 0.8125rem; }
@@ -729,4 +787,105 @@ body.side-hidden #sidebar { display: none; }
 .tool-check:hover { background: var(--bg-hover); }
 .tool-check input { margin-top: 0.2rem; min-width: 1.1rem; min-height: 1.1rem; }
 .tool-name { font-family: var(--font-code); font-size: 0.8125rem; }
+.tool-sub { display: block; width: 100%; color: var(--text-secondary); font-size: 0.75rem; margin-left: 1.6rem; }
 .tool-desc { display: block; font-size: 0.75rem; color: var(--text-secondary); }
+
+/* Fontes/citações RAG (M5). */
+.source-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-2); }
+.source-chip {
+  font-size: 0.8125rem; padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+  background: var(--bg-surface); color: var(--text-primary); cursor: pointer;
+}
+.source-chip:hover { background: var(--bg-hover); }
+.source-chip.stale { opacity: 0.65; border-style: dashed; }
+.cite-count { color: var(--text-secondary); }
+#sources-mode { display: flex; gap: var(--space-3); padding: var(--space-2) var(--space-1); font-size: 0.8125rem; }
+#sources-mode label { display: flex; gap: var(--space-1); align-items: center; cursor: pointer; }
+#source-excerpt {
+  border-left: 3px solid var(--border-subtle); margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3); white-space: pre-wrap;
+}
+.danger-text { color: var(--danger, #b3261e); }
+
+/* Página Conhecimento (M5). */
+#knowledge { max-width: 44rem; margin: 0 auto; padding: var(--space-8) var(--space-4); }
+#knowledge h1 { font-size: 1.5rem; letter-spacing: -0.01em; margin: 0 0 var(--space-1); }
+#knowledge h2 { font-size: 1.1rem; margin-top: var(--space-6); }
+#knowledge .back { display: inline-flex; align-items: center; gap: var(--space-1); font-size: 0.875rem; margin-bottom: var(--space-4); }
+#knowledge ul { list-style: none; padding: 0; }
+#knowledge li { padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle); display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
+#knowledge .meta { color: var(--text-secondary); font-size: 0.8125rem; }
+#knowledge .warn li { border: none; padding: var(--space-1) 0; }
+#knowledge form { display: flex; gap: var(--space-2); align-items: end; flex-wrap: wrap; margin: var(--space-3) 0; }
+#knowledge label { display: block; font-size: 0.875rem; font-weight: 600; }
+#knowledge .local-note { color: var(--text-secondary); font-size: 0.875rem; margin: 0 0 var(--space-2); }
+#knowledge input[type="text"], #knowledge input:not([type]) {
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.875rem;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  min-height: 2.75rem;
+}
+#knowledge input[type="file"] { font-size: 0.875rem; color: var(--text-primary); }
+
+/* ---------- agentes: mesmo padrão das páginas knowledge/settings ---------- */
+#agents { max-width: 44rem; margin: 0 auto; padding: var(--space-8) var(--space-4); }
+#agents h1 { font-size: 1.5rem; letter-spacing: -0.01em; margin: 0 0 var(--space-1); }
+#agents h2 { font-size: 1.1rem; margin-top: var(--space-6); }
+#agents h3 { font-size: 1rem; margin: var(--space-4) 0 var(--space-2); }
+#agents .back { display: inline-flex; align-items: center; gap: var(--space-1); font-size: 0.875rem; margin-bottom: var(--space-4); }
+#agents ul { list-style: none; padding: 0; }
+#agents li { padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle); display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
+#agents form { display: flex; gap: var(--space-2); align-items: end; flex-wrap: wrap; margin: var(--space-3) 0; }
+#agents label { display: block; font-size: 0.875rem; font-weight: 600; }
+#agents .local-note { color: var(--text-secondary); font-size: 0.875rem; margin: 0 0 var(--space-2); }
+#agents .field-hint { display: block; font-weight: 400; color: var(--text-secondary); font-size: 0.8125rem; }
+#agents .check { display: flex; gap: var(--space-2); align-items: center; font-weight: 400; }
+#agents .check input[type="checkbox"] { width: 1.25rem; height: 1.25rem; accent-color: var(--accent); }
+#agents input[type="text"], #agents input:not([type]), #agents select, #agents textarea {
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.875rem;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  min-height: 2.75rem;
+  max-width: 100%;
+}
+#agents textarea { width: 100%; resize: vertical; }
+#agents menu { display: flex; gap: var(--space-2); padding: 0; margin: var(--space-3) 0; }
+#agents .btn.sm { min-height: 0; padding: 0.3rem 0.7rem; font-size: 0.8125rem; }
+
+/* ---------- diálogo Enviar documentos (compartilhado) ---------- */
+.upload-dialog .up-row { display: flex; gap: var(--space-2); align-items: end; flex-wrap: wrap; margin-bottom: var(--space-3); }
+.upload-dialog .up-row label { margin-bottom: 0; }
+.upload-dialog select, .upload-dialog #up-newbase {
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.875rem;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  min-height: 2.75rem;
+  max-width: 100%;
+}
+.up-zone {
+  border: 1px dashed var(--border-control);
+  border-radius: var(--radius-control);
+  padding: var(--space-4);
+  text-align: center;
+  margin: var(--space-3) 0;
+}
+.up-zone.over { border-color: var(--accent); background: var(--bg-hover); }
+.up-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.up-zone p { margin: 0 0 var(--space-2); font-size: 0.875rem; color: var(--text-secondary); }
+.up-files { list-style: none; padding: 0; margin: var(--space-2) 0; }
+.up-file { padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle); }
+.up-file-head { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
+.up-file-head strong { overflow-wrap: anywhere; }
+.up-file progress { width: 100%; accent-color: var(--accent); }
+.up-file .meta .btn { margin-left: var(--space-2); }
+.up-conflict { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }

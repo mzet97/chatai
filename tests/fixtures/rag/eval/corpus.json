@@ -1,0 +1,18 @@
+{"documents": [
+{"id": "contrato", "base": "Juridico", "name": "contrato.txt",
+ "content": "Contrato de prestação de serviços de manutenção predial.\n\nO prazo de entrega de cada ordem de serviço é 30 dias corridos.\n\nA multa por atraso é 2% ao mês sobre o valor da ordem.\n\nA rescisão exige aviso prévio de 60 dias por escrito."},
+{"id": "sla", "base": "Juridico", "name": "sla.txt",
+ "content": "Acordo de nível de serviço do suporte técnico.\n\nO suporte responde chamados críticos em 4 horas úteis.\n\nA multa contratual por descumprimento do SLA é 5% da fatura.\n\nO canal oficial de abertura é o chat interno."},
+{"id": "ferias", "base": "RH", "name": "ferias.txt",
+ "content": "Política de férias da empresa.\n\nTodo colaborador tem direito a 30 dias de férias por ano.\n\nO abono pecuniário corresponde a 1/3 do salário.\n\nAs férias devem ser avisadas com 30 dias de antecedência."},
+{"id": "reembolso", "base": "RH", "name": "reembolso.txt",
+ "content": "Regras de reembolso de despesas.\n\nO teto mensal de reembolso é R$ 800 por colaborador.\n\nO pagamento sai em até 5 dias úteis após aprovação.\n\nNotas fiscais sem CNPJ da empresa são recusadas."},
+{"id": "seguranca", "base": "TI", "name": "seguranca.md",
+ "content": "# Segurança da informação\n\n## Senhas\n\nA senha deve ter no mínimo 12 caracteres.\n\n## Acesso\n\nO segundo fator (2FA) é obrigatório para todos.\n\nA sessão expira após 8 horas de inatividade."},
+{"id": "deploy", "base": "TI", "name": "deploy.txt",
+ "content": "Procedimento de deploy em produção.\n\nA janela de deploy é domingo das 02h às 06h.\n\nTodo deploy possui rollback automático em caso de erro.\n\nHá freeze de deploys durante todo o mês de dezembro."},
+{"id": "handbook_en", "base": "RH", "name": "handbook_en.txt",
+ "content": "Employee onboarding handbook.\n\nEvery newcomer gets an onboarding buddy for the first month.\n\nThe laptop is delivered within 48 hours of admission.\n\nThe probation period lasts 90 days."},
+{"id": "beneficios", "base": "RH", "name": "beneficios.txt",
+ "content": "Pacote de benefícios.\n\nO vale-refeição é R$ 32 por dia útil.\n\nA empresa subsidia 50% da academia conveniada.\n\nO bônus anual equivale a 1 salário extra."}
+]}

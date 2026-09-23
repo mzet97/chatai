@@ -70,6 +70,10 @@ def _mcp_records_for(conversation) -> list[ToolRecord]:
                     input_schema=snap["input_schema"] or {"type": "object"},
                     version=f"r{conn.revision}",
                     approval="require",
+                    # MCP transporta conteúdo binário nativo (M4/TV-5.2):
+                    # a autorização continua sendo a presença no catálogo +
+                    # aprovação; a carga é validada no servidor (executor).
+                    supports_images=True,
                 )
             )
     return records

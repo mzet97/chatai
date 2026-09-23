@@ -34,6 +34,14 @@
         <svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>
         <span>Configurações</span>
       </a>
+      <a class="foot-link" href="{% url 'knowledge' %}">
+        <svg class="ic" aria-hidden="true"><use href="#i-book"/></svg>
+        <span>Conhecimento</span>
+      </a>
+      <a class="foot-link" href="{% url 'agents' %}">
+        <svg class="ic" aria-hidden="true"><use href="#i-msg"/></svg>
+        <span>Agentes</span>
+      </a>
       <form method="post" action="{% url 'logout' %}" class="inline">
         {% csrf_token %}
         <button type="submit" class="foot-link as-button">
@@ -68,6 +76,26 @@
           <span id="tools-label">Ferramentas</span>
           <svg class="ic sm" aria-hidden="true"><use href="#i-chev"/></svg>
         </button>
+        <button id="sources-btn" class="model-select" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Fontes da conversa">
+          <span id="sources-label">Fontes</span>
+          <svg class="ic sm" aria-hidden="true"><use href="#i-chev"/></svg>
+        </button>
+        <button id="thinking-btn" class="model-select" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Pensamento da conversa">
+          <span id="thinking-label">Pensamento</span>
+          <svg class="ic sm" aria-hidden="true"><use href="#i-chev"/></svg>
+        </button>
+        <label class="level-wrap">
+          <span class="visually-hidden" id="agent-mode-label">Modo da conversa</span>
+          <select id="agent-mode" class="model-select" aria-labelledby="agent-mode-label">
+            <option value="chat" selected>Chat</option>
+            <option value="agent">Agente</option>
+            <option value="team">Equipe</option>
+          </select>
+        </label>
+        <label class="level-wrap">
+          <span class="visually-hidden" id="agent-profile-label">Perfil do agente</span>
+          <select id="agent-select" class="model-select" aria-labelledby="agent-profile-label"></select>
+        </label>
         <label class="stream-wrap" id="stream-wrap" title="Exibe a resposta conforme ela é gerada.">
           <input id="stream-toggle" type="checkbox" checked>
           <span aria-hidden="true" class="stream-track"><span class="stream-thumb"></span></span>
@@ -94,6 +122,49 @@
         <div id="tools-list"></div>
         <p class="pop-hint">Desativadas por padrão. Escritas sempre pedem aprovação.</p>
       </div>
+      <div id="sources-pop" class="popover" hidden role="dialog" aria-label="Fontes da conversa" tabindex="-1">
+        <p class="pop-title">Fontes nesta conversa</p>
+        <p id="sources-state" class="pop-state" role="status">Carregando…</p>
+        <div id="sources-list"></div>
+        <div id="sources-mode" role="radiogroup" aria-label="Modo de consulta">
+          <label><input type="radio" name="src-mode" value="always"> Sempre consultar</label>
+          <label><input type="radio" name="src-mode" value="tools"> Via ferramentas</label>
+        </div>
+        <p>
+          <button id="sources-upload" class="btn" type="button">Enviar documentos</button>
+        </p>
+        <p class="pop-hint">Vale para a próxima resposta. Desativar não apaga o histórico;
+          <a href="{% url 'knowledge' %}">gerenciar bases</a>.</p>
+      </div>
+      <div id="thinking-pop" class="popover" hidden role="dialog" aria-label="Pensamento da conversa" tabindex="-1">
+        <p class="pop-title">Pensamento nesta conversa</p>
+        <p id="thinking-state" class="pop-state" role="status">Carregando…</p>
+        <div id="thinking-mode" role="radiogroup" aria-label="Modo de pensamento">
+          <label><input type="radio" name="think-mode" id="think-mode-default" value="default" checked> Padrão do modelo</label>
+          <label><input type="radio" name="think-mode" id="think-mode-disabled" value="disabled"> Desativado</label>
+          <label><input type="radio" name="think-mode" id="think-mode-enabled" value="enabled"> Ativado</label>
+        </div>
+        <p>
+          <label for="thinking-level">Nível de pensamento</label>
+          <select id="thinking-level">
+            <option value="low">Baixo</option>
+            <option value="medium" selected>Médio</option>
+            <option value="high">Alto</option>
+          </select>
+        </p>
+        <p>
+          <label for="thinking-budget">Orçamento manual (tokens)</label>
+          <select id="thinking-budget">
+            <option value="1024" selected>1.024</option>
+            <option value="2048">2.048</option>
+            <option value="4096">4.096</option>
+          </select>
+        </p>
+        <p>
+          <label><input type="checkbox" id="thinking-summary"> Exibir resumo disponibilizado pela API</label>
+        </p>
+        <p class="pop-hint">Pode aumentar o tempo de resposta e o consumo de tokens. Vale para a próxima resposta.</p>
+      </div>
       <div id="actions-pop" class="popover menu" hidden role="menu" tabindex="-1">
         <button role="menuitemcheckbox" type="button" id="stream-menuitem" aria-checked="true">Streaming: ativado</button>
         <button role="menuitem" type="button" data-act="conv-settings">Configurações da conversa</button>
@@ -107,6 +178,12 @@
       <svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>
       <p>Nenhuma chave configurada. O histórico continua acessível.</p>
       <a href="{% url 'settings' %}">Configurar conexão</a>
+    </div>
+
+    <div id="team-banner" class="banner" hidden>
+      <svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>
+      <p>Modo Equipe: o coordenador pode delegar a até 2 especialistas (só leitura).
+        Acompanhe a trilha e o orçamento nos Detalhes da execução.</p>
     </div>
 
     <div id="messages" aria-label="Histórico da conversa"></div>
@@ -128,16 +205,27 @@
     </button>
 
     <div id="status" role="status"></div>
+    <p id="durable-note" class="pop-hint" hidden>
+      Execução em curso no servidor — fechar ou recarregar a aba não cancela.
+      Use <strong>Interromper</strong> para parar; o orçamento continua valendo.
+    </p>
 
     <form id="composer" aria-label="Enviar mensagem">
-      <label class="visually-hidden" for="input">Mensagem</label>
-      <textarea id="input" rows="2" placeholder="Escreva sua mensagem…"></textarea>
-      <button id="btn-send" type="submit" aria-label="Enviar mensagem" disabled>
-        <svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>
-      </button>
-      <button id="btn-stop" type="button" hidden aria-label="Interromper geração">
-        <svg class="ic" aria-hidden="true"><use href="#i-stop"/></svg>
-      </button>
+      <div id="attach-strip" hidden aria-label="Imagens anexadas"></div>
+      <div class="composer-row">
+        <button id="btn-attach" type="button" class="icon-btn" aria-label="Anexar imagem">
+          <svg class="ic" aria-hidden="true"><use href="#i-image"/></svg>
+        </button>
+        <input id="file-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden aria-label="Selecionar imagens">
+        <label class="visually-hidden" for="input">Mensagem</label>
+        <textarea id="input" rows="2" placeholder="Escreva sua mensagem…"></textarea>
+        <button id="btn-send" type="submit" aria-label="Enviar mensagem" disabled>
+          <svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>
+        </button>
+        <button id="btn-stop" type="button" hidden aria-label="Interromper geração">
+          <svg class="ic" aria-hidden="true"><use href="#i-stop"/></svg>
+        </button>
+      </div>
     </form>
   </main>
 
@@ -176,6 +264,19 @@
   </form>
 </dialog>
 
+<dialog id="source-dialog" aria-labelledby="source-title">
+  <div>
+    <h2 id="source-title">Fonte</h2>
+    <p id="source-meta" class="meta"></p>
+    <p id="source-locator" class="meta"></p>
+    <blockquote id="source-excerpt"></blockquote>
+    <p class="form-note">Trecho canônico da versão citada. O arquivo completo não abre automaticamente.</p>
+    <menu>
+      <button type="button" id="source-close" class="primary">Fechar</button>
+    </menu>
+  </div>
+</dialog>
+
 <dialog id="delete-dialog" aria-labelledby="delete-title">
   <form method="dialog" id="delete-form">
     <h2 id="delete-title">Excluir conversa</h2>
@@ -190,4 +291,6 @@
 {% block scripts %}
 {% load static %}
 <script type="module" src="{% static 'chat/js/chat.js' %}"></script>
+<script type="module" src="{% static 'chat/js/thinking-ui.js' %}"></script>
+<script type="module" src="{% static 'chat/js/agent-select.js' %}"></script>
 {% endblock %}

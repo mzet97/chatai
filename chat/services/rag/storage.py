@@ -23,6 +23,18 @@ def write_original(dest: Path, content: bytes) -> None:
     dest.write_bytes(content)
 
 
+def rag_object_store():
+    """ObjectStore local enraizado no diretório RAG (M3).
+
+    Mesmo layout byte a byte do caminho anterior (`version_path`): nenhuma
+    migração de dados. O backend S3 do perfil homelab implementa a mesma
+    ABC (ver docs/architecture-v2/migration.md).
+    """
+    from chat.services.storage import LocalObjectStore
+
+    return LocalObjectStore(root=rag_root())
+
+
 def delete_tree(path: Path) -> None:
     import shutil
 

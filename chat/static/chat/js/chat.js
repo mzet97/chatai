@@ -1,5 +1,5 @@
 // Tela principal do chat (redesign).
-import { api, newIdempotencyKey } from "./api.js";
+import { api, csrfToken, newIdempotencyKey } from "./api.js";
 import { readSSE } from "./sse.js";
 import { renderMarkdown } from "./markdown.js";
 import { initTheme } from "./theme.js";
@@ -162,9 +162,10 @@ function rowMenu(anchor, c) {
 let openPop = null;
 function closePops() {
   document.querySelectorAll(".popover.rowmenu").forEach((p) => p.remove());
-  for (const id of ["model-pop", "actions-pop", "tools-pop"]) $(id).hidden = true;
+  for (const id of ["model-pop", "actions-pop", "tools-pop", "sources-pop"]) $(id).hidden = true;
   $("model-btn").setAttribute("aria-expanded", "false");
   $("tools-btn").setAttribute("aria-expanded", "false");
+  $("sources-btn").setAttribute("aria-expanded", "false");
   $("actions-btn").setAttribute("aria-expanded", "false");
   if (openPop && openPop._anchor) openPop._anchor.setAttribute("aria-expanded", "false");
   openPop = null;
@@ -204,6 +205,7 @@ function messageNode(m, model) {
   head.append(role, meta);
   turn.append(head);
   if (m.role === "user") {
+    if (m.images && m.images.length) turn.append(userImagesNode(m.images));
     const b = document.createElement("div");
     b.className = "msg-user";
     b.textContent = m.text;
@@ -308,6 +310,7 @@ async function loadConversation() {
   applyLevelState(conv);
   applyStreamState(conv);
   refreshToolsLabel();
+  refreshSourcesLabel();
   $("btn-export-md").href = `/api/conversations/${convUuid}/export?format=markdown`;
   $("btn-export-json").href = `/api/conversations/${convUuid}/export?format=json`;
   $("f-title").value = conv.title;
@@ -327,6 +330,7 @@ async function loadConversation() {
   } while (page <= pages);
   msgEl.scrollTop = msgEl.scrollHeight;
   updateScrollPill();
+  loadHistoricalCitations();
   if (conv.has_active_run) {
     setStatus("Há uma geração ativa (outra aba?). Leitura liberada; envio bloqueado.");
     sendBtn.disabled = true;
@@ -364,10 +368,118 @@ function autogrow() {
 
 function syncSendState() {
   const hasText = inputEl.value.trim().length > 0;
-  sendBtn.disabled = !hasText || !!activeRun || levelSaving || streamSaving || (currentConv && currentConv.has_active_run);
+  const hasImages = pendingImages.length > 0;
+  sendBtn.disabled = (!hasText && !hasImages) || !!activeRun || uploading > 0 || levelSaving || streamSaving || (currentConv && currentConv.has_active_run);
   stopBtn.hidden = !activeRun;
+  const note = $("durable-note");
+  if (note) note.hidden = !activeRun; // M2: execução vive no servidor
   syncLevelLock();
   syncStreamLock();
+}
+
+/* ---------- anexo visível de imagens (M3; separado do Documento RAG) ---------- */
+const attachBtn = $("btn-attach");
+const fileInput = $("file-image");
+const stripEl = $("attach-strip");
+const MAX_ATTACH = 4;
+const MAX_ATTACH_BYTES = 5 * 1024 * 1024;
+const IMG_OK = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+let pendingImages = []; // {media_type,data,thumbnail,width,height,name}
+let uploading = 0;
+
+function userImagesNode(images) {
+  const wrap = document.createElement("div");
+  wrap.className = "msg-images";
+  for (const im of images) {
+    if (!im.thumbnail) continue;
+    const img = document.createElement("img");
+    img.src = im.thumbnail;
+    img.alt = `Imagem anexada (${im.width || "?"}×${im.height || "?"})`;
+    img.title = `${im.media_type || "imagem"} · ${im.width || "?"}×${im.height || "?"}`;
+    img.loading = "lazy";
+    wrap.append(img);
+  }
+  return wrap;
+}
+
+function renderStrip() {
+  stripEl.innerHTML = "";
+  stripEl.hidden = pendingImages.length === 0;
+  pendingImages.forEach((item, idx) => {
+    const box = document.createElement("div");
+    box.className = "attach-thumb";
+    const img = document.createElement("img");
+    img.src = item.thumbnail;
+    img.alt = `Anexo ${idx + 1}: ${item.name}`;
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "attach-rm";
+    rm.textContent = "Remover";
+    rm.setAttribute("aria-label", `Remover ${item.name}`);
+    rm.addEventListener("click", () => {
+      pendingImages.splice(idx, 1);
+      renderStrip();
+      syncSendState();
+      inputEl.focus();
+    });
+    box.append(img, rm);
+    stripEl.append(box);
+  });
+}
+
+function isImageFile(f) {
+  if (IMG_OK.has(f.type)) return true;
+  return /\.(jpe?g|png|webp|gif)$/i.test(f.name || "");
+}
+
+async function uploadImageFile(file) {
+  const form = new FormData();
+  form.append("file", file);
+  const resp = await fetch("/api/images", {
+    method: "POST",
+    headers: { "X-CSRFToken": csrfToken() },
+    credentials: "same-origin",
+    body: form,
+  });
+  const body = await resp.json().catch(() => ({}));
+  if (resp.status === 403) throw new Error("Sessão expirada ou CSRF inválido. Recarregue a página.");
+  if (!resp.ok) throw new Error(body.message || `HTTP ${resp.status}`);
+  return { ...body, name: file.name };
+}
+
+async function addImageFiles(files) {
+  const imgs = [...files].filter(isImageFile);
+  if ([...files].length && !imgs.length) {
+    setStatus("Somente arquivos de imagem (JPEG, PNG, WebP, GIF).");
+    return;
+  }
+  for (const f of imgs) {
+    if (pendingImages.length >= MAX_ATTACH) {
+      setStatus(`Máximo de ${MAX_ATTACH} imagens por mensagem.`);
+      break;
+    }
+    if (f.size > MAX_ATTACH_BYTES) {
+      setStatus(`“${f.name}” excede 5 MiB e foi ignorado.`);
+      continue;
+    }
+    uploading += 1;
+    syncSendState();
+    try {
+      pendingImages.push(await uploadImageFile(f));
+      renderStrip();
+      setStatus("");
+    } catch (e) {
+      setStatus(`Falha ao anexar “${f.name}”: ${e.message}`);
+    } finally {
+      uploading -= 1;
+      syncSendState();
+    }
+  }
+}
+
+function clearAttachments() {
+  pendingImages = [];
+  renderStrip();
 }
 
 /* ---------- modo de entrega (Streaming ligado/desligado; vale na próxima resposta) ---------- */
@@ -507,8 +619,13 @@ function restoreDraft() {
 
 async function send() {
   const content = inputEl.value.trim();
-  if (!content || activeRun) return;
+  const images = pendingImages.map(({ media_type, data }) => ({ media_type, data }));
+  if ((!content && !images.length) || activeRun || uploading > 0) return;
   saveDraft();
+  // Limpa já: a reserva é assíncrona e o texto digitado depois não pode ser apagado por ela.
+  inputEl.value = "";
+  autogrow();
+  syncSendState();
   if (!convUuid) {
     const conv = await api("/api/conversations", { method: "POST", body: {} });
     convUuid = conv.uuid;
@@ -540,26 +657,45 @@ async function send() {
         setStatus("Modo de entrega não salvo (" + e.message + "); segue o padrão. Texto mantido.");
       }
     }
+    if (window.__pendingThinking) {
+      // Aplica o pensamento escolhido antes da geração, sem gerar nada extra.
+      try {
+        currentConv = await api(`/api/conversations/${convUuid}`, {
+          method: "PATCH",
+          body: window.__pendingThinking,
+        });
+        window.__pendingThinking = null;
+      } catch (e) {
+        setStatus("Pensamento não salvo (" + e.message + "); segue o padrão. Texto mantido.");
+      }
+    }
   }
   const key = newIdempotencyKey();
   let reservation;
   try {
     reservation = await api(`/api/conversations/${convUuid}/messages`, {
       method: "POST",
-      body: { content, idempotency_key: key },
+      body: { content, images, idempotency_key: key },
     });
   } catch (e) {
-    setStatus("Erro ao enviar: " + e.message + " Seu texto foi mantido.");
+    setStatus("Erro ao enviar: " + e.message + " Seu texto e anexos foram mantidos.");
+    inputEl.value = content;
+    saveDraft();
+    autogrow();
+    syncSendState();
     return;
   }
-  inputEl.value = "";
   drafts.delete(convUuid);
-  autogrow();
   emptyState.hidden = true;
+  const sentImages = pendingImages.map((p) => ({
+    thumbnail: p.thumbnail, media_type: p.media_type, width: p.width, height: p.height,
+  }));
+  clearAttachments();
   appendMessage({
     uuid: reservation.user_message_id,
     role: "user",
     text: content,
+    images: sentImages,
     state: "ok",
     created_at: new Date().toISOString(),
   });
@@ -740,6 +876,25 @@ function handleStreamEvent(runId, ev, S) {
   } else if (ev.type === "usage") {
     const meta = node.querySelector(".turn-meta");
     meta.textContent += ` · ${ev.input_tokens ?? "?"} in / ${ev.output_tokens ?? "?"} out`;
+  } else if (ev.type === "citation_delta") {
+    // Provisório: conta menções, sem afirmar sustentação validada.
+    S.citeCount = (S.citeCount || 0) + 1;
+    if (S.liveMode !== "complete") {
+      let tag = node.querySelector(".cite-count");
+      if (!tag) {
+        tag = document.createElement("span");
+        tag.className = "turn-meta cite-count";
+        node.querySelector(".turn-head").append(tag);
+      }
+      tag.textContent = ` · fontes mencionadas: ${S.citeCount} (verificando…)`;
+    }
+  } else if (ev.type === "sources") {
+    // Canônico: reconcilia com a mensagem final, sem duplicar.
+    const old = node.querySelector(".source-chips");
+    if (old) old.remove();
+    const provisional = node.querySelector(".cite-count");
+    if (provisional) provisional.remove();
+    renderSourceChips(node, ev.sources || []);
   } else if (ev.type === "cancelled") {
     S.terminal = "cancelled";
     S.finishTurn(S.acc, "cancelled");
@@ -763,6 +918,8 @@ const TOOL_TITLES = {
   local__current_time: "Consultar horário",
   local__create_study_note: "Criar nota de estudo",
   local__list_study_notes: "Listar notas de estudo",
+  local__search_knowledge_base: "Buscar nas fontes",
+  local__read_knowledge_excerpt: "Ler trecho da fonte",
 };
 
 function approvalCard(runId, ev) {
@@ -842,9 +999,16 @@ async function openToolsPop() {
   const pop = $("tools-pop");
   const willOpen = pop.hidden;
   closePops();
-  if (!willOpen || !convUuid) return;
+  if (!willOpen) return;
   pop.hidden = false;
   $("tools-btn").setAttribute("aria-expanded", "true");
+  if (!convUuid) {
+    $("tools-state").textContent =
+      "Abra ou crie uma conversa para configurar as ferramentas.";
+    $("tools-list").innerHTML = "";
+    pop.focus();
+    return;
+  }
   $("tools-state").textContent = "Carregando…";
   $("tools-list").innerHTML = "";
   try {
@@ -906,6 +1070,171 @@ async function toggleTool(stableId, box) {
     $("tools-state").textContent = "Falha ao salvar: " + e.message;
   } finally {
     box.disabled = false;
+  }
+}
+
+/* ---------- fontes por conversa (RAG M5) ---------- */
+function setSourcesLabel(count) {
+  $("sources-label").textContent = count ? `Fontes (${count})` : "Fontes";
+}
+
+async function refreshSourcesLabel() {
+  if (!convUuid) return;
+  try {
+    const sel = await api(`/api/rag/conversations/${convUuid}/sources`);
+    setSourcesLabel((sel.bases || []).length);
+  } catch {
+    setSourcesLabel(0);
+  }
+}
+
+async function openSourcesPop() {
+  const pop = $("sources-pop");
+  const willOpen = pop.hidden;
+  closePops();
+  if (!willOpen) return;
+  pop.hidden = false;
+  $("sources-btn").setAttribute("aria-expanded", "true");
+  if (!convUuid) {
+    $("sources-state").textContent =
+      "Abra ou crie uma conversa para selecionar as fontes.";
+    $("sources-list").innerHTML = "";
+    pop.focus();
+    return;
+  }
+  $("sources-state").textContent = "Carregando…";
+  $("sources-list").innerHTML = "";
+  try {
+    const [bases, sel] = await Promise.all([
+      api("/api/rag/bases"),
+      api(`/api/rag/conversations/${convUuid}/sources`),
+    ]);
+    renderSourcesList(bases.results || [], new Set(sel.bases || []), sel.coverage || {});
+    for (const r of document.querySelectorAll('input[name="src-mode"]')) {
+      r.checked = r.value === (sel.mode || "always");
+      r.onchange = () => saveSources();
+    }
+    $("sources-state").textContent = "Vale para a próxima resposta.";
+  } catch (e) {
+    $("sources-state").textContent = "Erro ao carregar: " + e.message;
+  }
+  $("sources-pop").focus();
+}
+
+function renderSourcesList(bases, selected, coverage) {
+  const list = $("sources-list");
+  list.innerHTML = "";
+  for (const b of bases) {
+    const label = document.createElement("label");
+    label.className = "tool-check";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = selected.has(b.uuid);
+    box.dataset.uuid = b.uuid;
+    box.setAttribute("aria-label", b.name);
+    box.addEventListener("change", () => saveSources());
+    const name = document.createElement("span");
+    name.className = "tool-name";
+    name.textContent = b.name; // texto, nunca HTML
+    label.append(box, name);
+    const cov = (coverage || {})[b.uuid];
+    if (cov && (cov.ready || cov.processing)) {
+      const sub = document.createElement("span");
+      sub.className = "tool-sub";
+      sub.textContent = `${cov.ready} pronto(s)` + (cov.processing ? ` · ${cov.processing} em processamento` : "");
+      label.append(sub);
+    }
+    list.append(label);
+  }
+  if (!bases.length) {
+    $("sources-state").textContent = "Nenhuma base. Envie documentos ou crie em Conhecimento.";
+  }
+}
+
+async function openUploadFromSources() {
+  const { openUploadDialog } = await import("./upload.js");
+  $("sources-pop").hidden = true;
+  $("sources-btn").setAttribute("aria-expanded", "false");
+  await openUploadDialog({
+    conversationUuid: convUuid,
+    onPublished: async () => { await refreshSourcesLabel(); if (!$("sources-pop").hidden) await openSourcesPop(); },
+  });
+  await refreshSourcesLabel();
+}
+
+async function saveSources() {
+  const boxes = [...$("sources-list").querySelectorAll("input[type=checkbox]")];
+  const picked = boxes.filter((b) => b.checked).map((b) => b.dataset.uuid);
+  const mode = (document.querySelector('input[name="src-mode"]:checked') || {}).value || "always";
+  try {
+    const saved = await api(`/api/rag/conversations/${convUuid}/sources`, {
+      method: "PUT",
+      body: { bases: picked, mode },
+    });
+    setSourcesLabel((saved.bases || []).length);
+    $("sources-state").textContent = "Salvo. Vale para a próxima resposta.";
+  } catch (e) {
+    $("sources-state").textContent = "Falha ao salvar: " + e.message;
+  }
+}
+
+function formatLocator(loc) {
+  if (!loc || typeof loc !== "object") return "";
+  if (loc.page) return `página ${loc.page}`;
+  const parts = [];
+  if (Array.isArray(loc.section) && loc.section.length) parts.push("seção: " + loc.section.join(" › "));
+  if (Array.isArray(loc.lines)) parts.push(`linhas ${loc.lines[0]}–${loc.lines[1]}`);
+  if (loc.block) parts.push(`bloco ${loc.block}`);
+  if (Array.isArray(loc.spans)) parts.push(`${loc.spans.length} trecho(s)`);
+  return parts.join(" · ");
+}
+
+function renderSourceChips(turnNode, sources) {
+  if (!sources.length) return;
+  const row = document.createElement("div");
+  row.className = "source-chips";
+  row.setAttribute("role", "group");
+  row.setAttribute("aria-label", "Fontes citadas e verificadas");
+  for (const s of sources) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "source-chip" + (s.available === false ? " stale" : "");
+    const label = s.available === false ? "fonte removida" : s.doc;
+    chip.textContent = `[${s.index}] ${label}`;
+    chip.setAttribute("aria-label", `Abrir fonte ${s.index}: ${label}`);
+    chip.addEventListener("click", () => openSourceDialog(s));
+    row.append(chip);
+  }
+  turnNode.append(row);
+}
+
+function openSourceDialog(s) {
+  lastOpener = document.activeElement;
+  if (s.available === false) {
+    $("source-title").textContent = `Fonte [${s.index}] — removida`;
+    $("source-meta").textContent = "conteúdo excluído pelo proprietário";
+    $("source-locator").textContent = formatLocator(s.locator) || "localizador registrado";
+    $("source-excerpt").textContent =
+      "Esta fonte foi removida e não está mais disponível. A referência permanece no histórico sem ressuscitar o conteúdo.";
+  } else {
+    $("source-title").textContent = `Fonte [${s.index}] — ${s.doc}`;
+    $("source-meta").textContent = `${s.base} · versão ${s.version}`;
+    $("source-locator").textContent = formatLocator(s.locator) || "localizador registrado";
+    $("source-excerpt").textContent = s.excerpt || "";
+  }
+  $("source-dialog").showModal();
+}
+
+async function loadHistoricalCitations() {
+  if (!convUuid) return;
+  try {
+    const data = await api(`/api/rag/conversations/${convUuid}/citations`);
+    for (const [msgUuid, sources] of Object.entries(data.citations || {})) {
+      const turn = msgEl.querySelector(`article.turn[data-uuid="${msgUuid}"]`);
+      if (turn && !turn.querySelector(".source-chips")) renderSourceChips(turn, sources);
+    }
+  } catch {
+    /* sem fontes: histórico segue normal */
   }
 }
 
@@ -1080,6 +1409,15 @@ function fillInspector(run) {
     const eff = modeNames[snap.effective_response_mode] || snap.effective_response_mode;
     kv(sum, "Entrega", req === eff ? eff : `${req} (efetivo: ${eff})`);
   }
+  const rag = snap.rag || {};
+  if (rag.status === "ready") {
+    const d = rag.diagnosis || {};
+    kv(sum, "RAG", `pré-busca · ${rag.evidences} evidência(s) · ${rag.sent_chars} chars (−${rag.dropped})`);
+    kv(sum, "Consulta efetiva", missing(rag.effective_query));
+    kv(sum, "Recuperação", `${d.method || "?"} · ${d.ms_total ?? "?"} ms · perfil ${d.profile_id ?? "?"}`);
+  } else if (rag.status === "abstain") {
+    kv(sum, "RAG", `abstenção (${rag.reason || "?"}) — sem chamada paga`);
+  }
   const ctx = $("insp-context");
   ctx.innerHTML = "";
   // O backend registra seqs incluídos/omitidos (context_used); o texto completo vive no histórico.
@@ -1112,7 +1450,57 @@ function fillInspector(run) {
   kv(use, "Parada", missing(run.stop_reason));
   kv(use, "Request", missing(run.request_id));
   if (run.error_code) kv(use, "Erro", run.error_code + (run.error_message ? " — " + run.error_message : ""));
+  renderAgentTrail(run, sum, use);
   $("inspect-body").textContent = JSON.stringify(run, null, 2);
+}
+
+/* ---------- trilha do agente/equipe + métricas (M5) ---------- */
+function renderAgentTrail(run, sum, use) {
+  const snap = run.snapshot || {};
+  const agent = snap.agent || {};
+  if (agent.applied) {
+    const origins = Object.entries(agent.origins || {})
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(" · ");
+    kv(sum, "Agente", `${agent.definition || "?"} (r${agent.version_revision ?? "?"}) · modo ${agent.mode || "?"}`);
+    if (origins) kv(sum, "Origens do agente", origins);
+  } else if ((agent.mode || "chat") !== "chat") {
+    kv(sum, "Agente", `modo ${agent.mode} (perfil indisponível — resposta sem instruções do perfil)`);
+  }
+  const think = snap.agent_thinking;
+  if (think && think.applied) {
+    const eff = think.effective || {};
+    kv(sum, "Pensamento do agente", `${eff.mode || "?"} · ${eff.level || "?"} · origem ${JSON.stringify(think.origins || {})}`);
+  }
+  const cache = snap.cache || {};
+  if (cache.plan) {
+    kv(use, "Cache solicitado", `${cache.plan.mode || "?"} · TTL ${cache.plan.ttl || "?"}`);
+    kv(use, "Cache elegível", cache.plan.eligible ? `sim (${cache.plan.diagnosis || "ok"})` : `não (${cache.plan.diagnosis || "?"})`);
+  }
+  const steps = ((run.tools || {}).steps || []).filter((s) => s.cache_creation_input_tokens || s.cache_read_input_tokens);
+  if (steps.length) {
+    const wrote = steps.reduce((a, s) => a + (s.cache_creation_input_tokens || 0), 0);
+    const read = steps.reduce((a, s) => a + (s.cache_read_input_tokens || 0), 0);
+    const total = (run.input_tokens || 0) + wrote + read;
+    const frac = total > 0 ? ` (${((100 * read) / total).toFixed(1)}% lida)` : "";
+    kv(use, "Cache confirmado", `escrita ${wrote} · leitura ${read}${frac} — só tokens, sem estimativa monetária`);
+  } else if (cache.plan && cache.plan.eligible) {
+    kv(use, "Cache confirmado", "sem confirmação do provedor (desconhecido ≠ zero)");
+  }
+  const team = run.team || {};
+  if (team.available) {
+    kv(sum, "Equipe", `${team.coordinator || "?"} (r${team.revision ?? "?"}) · raiz ${team.root_state || "?"}`);
+    const kids = team.children || [];
+    kv(sum, "Filhas", kids.length ? kids.map((c) => `${c.agent || "?"}: ${c.state}${c.summary ? ` — ${c.summary}` : ""}`).join(" | ") : "nenhuma delegação concluída");
+    const evts = (team.events || []).map((e) => `#${e.seq} ${e.kind}`).join(" · ");
+    if (evts) kv(sum, "Trilha", evts);
+    const led = team.ledger || {};
+    if (led && Object.keys(led).length) kv(use, "Orçamento da árvore", JSON.stringify(led));
+    const lim = team.limits || {};
+    if (lim.max_child_runs != null) kv(use, "Teto de filhas", `${kids.length}/${lim.max_child_runs}`);
+  } else if (agent.mode === "team" || team.reason === "no_delegatables") {
+    kv(sum, "Equipe", `indisponível (${team.reason || "sem delegáveis"}): resposta só do coordenador`);
+  }
 }
 
 function closeInspector(returnFocus) {
@@ -1161,6 +1549,28 @@ inputEl.addEventListener("keydown", (e) => {
   }
 });
 stopBtn.addEventListener("click", stop);
+// Anexo de imagens: seletor nativo + arrastar/soltar + colar (só imagem).
+attachBtn.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => {
+  addImageFiles([...fileInput.files]);
+  fileInput.value = "";
+});
+["dragenter", "dragover"].forEach((t) => composerEl.addEventListener(t, (e) => {
+  if (![...(e.dataTransfer?.types || [])].includes("Files")) return;
+  e.preventDefault();
+  composerEl.classList.add("over");
+}));
+["dragleave", "drop"].forEach((t) => composerEl.addEventListener(t, (e) => {
+  e.preventDefault();
+  composerEl.classList.remove("over");
+}));
+composerEl.addEventListener("drop", (e) => {
+  if (e.dataTransfer && e.dataTransfer.files.length) addImageFiles([...e.dataTransfer.files]);
+});
+inputEl.addEventListener("paste", (e) => {
+  const files = [...(e.clipboardData?.files || [])];
+  if (files.length) addImageFiles(files);
+});
 scrollPill.addEventListener("click", () => {
   msgEl.scrollTop = msgEl.scrollHeight;
   updateScrollPill();
@@ -1218,6 +1628,12 @@ $("scrim").addEventListener("click", () => setSide(false));
 // Seletor + menu
 $("model-btn").addEventListener("click", openModelPop);
 $("tools-btn").addEventListener("click", openToolsPop);
+$("sources-btn").addEventListener("click", openSourcesPop);
+$("sources-upload").addEventListener("click", openUploadFromSources);
+$("source-close").addEventListener("click", () => {
+  $("source-dialog").close();
+  if (lastOpener && document.contains(lastOpener)) lastOpener.focus();
+});
 $("model-search").addEventListener("input", async () => {
   try {
     const data = await api("/api/models");
@@ -1261,7 +1677,7 @@ $("inspector-close").addEventListener("click", () => closeInspector(true));
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    if (!$("model-pop").hidden || !$("actions-pop").hidden || !$("tools-pop").hidden || openPop) {
+    if (!$("model-pop").hidden || !$("actions-pop").hidden || !$("tools-pop").hidden || !$("sources-pop").hidden || openPop) {
       closePops();
       $("model-btn").focus();
     } else if (!$("inspector").hidden) closeInspector(true);
@@ -1291,6 +1707,14 @@ document.addEventListener("click", (e) => {
   ) {
     $("tools-pop").hidden = true;
     $("tools-btn").setAttribute("aria-expanded", "false");
+  }
+  if (
+    !$("sources-pop").hidden &&
+    !$("sources-pop").contains(e.target) &&
+    !$("sources-btn").contains(e.target)
+  ) {
+    $("sources-pop").hidden = true;
+    $("sources-btn").setAttribute("aria-expanded", "false");
   }
 });
 

@@ -44,3 +44,49 @@ def test_bases_isoladas_por_usuario(logged_client, user2):
     c2.force_login(user2)
     assert c2.get("/api/rag/bases").json()["results"] == []
     assert logged_client.get("/api/rag/bases").json()["results"] != []
+
+
+def test_sources_por_conversa_get_put(logged_client, user):
+    from chat.models import Conversation
+
+    conv = Conversation.objects.create(owner=user, title="t")
+    r = logged_client.get(f"/api/rag/conversations/{conv.uuid}/sources")
+    assert r.json() == {"bases": [], "mode": "always", "coverage": {}}
+    b = logged_client.post("/api/rag/bases", data={"name": "B"},
+                           content_type="application/json").json()
+    r = logged_client.put(
+        f"/api/rag/conversations/{conv.uuid}/sources",
+        data={"bases": [b["uuid"], "00000000-0000-0000-0000-000000000000"], "mode": "tools"},
+        content_type="application/json",
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["bases"] == [b["uuid"]] and body["mode"] == "tools"
+
+
+def test_sources_rejeita_com_run_ativa(logged_client, user):
+    from chat.models import Conversation, GenerationRun, Message
+
+    conv = Conversation.objects.create(owner=user, title="t")
+    msg = Message.objects.create(conversation=conv, seq=1, role="user", text="oi")
+    run = GenerationRun.objects.create(
+        conversation=conv, user_message=msg, idempotency_key="k",
+        content_hash="x" * 64, state="streaming",
+    )
+    conv.active_run = run
+    conv.save(update_fields=["active_run"])
+    r = logged_client.put(
+        f"/api/rag/conversations/{conv.uuid}/sources",
+        data={"bases": [], "mode": "always"},
+        content_type="application/json",
+    )
+    assert r.status_code == 409
+    assert r.json()["code"] == "run_busy"
+
+
+def test_sources_de_outro_usuario_404(logged_client, user2):
+    from chat.models import Conversation
+
+    conv = Conversation.objects.create(owner=user2, title="alheia")
+    r = logged_client.get(f"/api/rag/conversations/{conv.uuid}/sources")
+    assert r.status_code == 404

@@ -1,0 +1,62 @@
+{% extends "chat/base.html" %}
+{% block title %}Agentes — claude-chat-local{% endblock %}
+{% block body %}
+<main id="agents">
+  <a class="back" href="{% url 'index' %}">← Voltar ao chat</a>
+  <h1>Agentes</h1>
+  <p class="local-note">Perfis versionados: rascunhos são editáveis; versões publicadas são
+    imutáveis (edite criando um rascunho). Arquivar impede nova seleção e preserva o histórico.</p>
+
+  <p>
+    <button id="ag-examples" class="btn primary" type="button">Criar agentes de exemplo</button>
+  </p>
+  <p id="ag-state" class="pop-state" role="status"></p>
+
+  <section aria-label="Novo agente">
+    <h2>Novo agente</h2>
+    <form id="ag-create" aria-label="Criar agente">
+      <label>Nome <input id="ag-name" maxlength="120" placeholder="Ex.: Revisor de código…" autocomplete="off"></label>
+      <label>Tipo
+        <select id="ag-kind">
+          <option value="general">Geral</option>
+          <option value="researcher">Pesquisador</option>
+          <option value="reviewer">Revisor</option>
+          <option value="coordinator">Coordenador</option>
+        </select>
+      </label>
+      <label>Descrição <input id="ag-desc" maxlength="2000" placeholder="(opcional)" autocomplete="off"></label>
+      <button class="btn primary" type="submit">Criar</button>
+    </form>
+  </section>
+
+  <section aria-label="Agentes cadastrados">
+    <h2>Cadastrados</h2>
+    <label class="check"><input id="ag-show-archived" type="checkbox"> <span>Mostrar arquivados</span></label>
+    <ul id="ag-list"></ul>
+  </section>
+
+  <section aria-label="Versões do perfil" id="ag-versions-section" hidden>
+    <h2 id="ag-versions-title">Versões</h2>
+    <p>
+      <button id="ag-new-draft" class="btn" type="button">Novo rascunho</button>
+      <button id="ag-duplicate" class="btn" type="button">Duplicar perfil</button>
+      <button id="ag-archive" class="btn" type="button">Arquivar/desarquivar</button>
+    </p>
+    <ul id="ag-versions"></ul>
+    <form id="ag-edit" aria-label="Editar rascunho" hidden>
+      <h3>Rascunho <span id="ag-edit-rev"></span></h3>
+      <label>Instruções da tarefa <textarea id="ag-task" rows="4"></textarea></label>
+      <label>Modelo <input id="ag-model" maxlength="200" placeholder="Ex.: claude-haiku-4-5-20251001"></label>
+      <p class="field-hint">Publicar exige modelo definido. Sem modelo, o perfil fica incompleto.</p>
+      <menu>
+        <button id="ag-save" class="btn primary" type="button">Salvar rascunho</button>
+        <button id="ag-publish" class="btn" type="button">Publicar</button>
+      </menu>
+    </form>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}
+{% load static %}
+<script type="module" src="{% static 'chat/js/agents.js' %}"></script>
+{% endblock %}
