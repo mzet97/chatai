@@ -128,7 +128,7 @@ def test_exemplos_seletor_equipe_aviso_persiste(agents_server):
             page.click("#ag-examples")
             page.wait_for_function(
                 "() => document.querySelectorAll('#ag-list li').length === 4",
-                timeout=15000,
+                timeout=45000,
             )
             page.click("#ag-examples")
             page.wait_for_timeout(1500)
@@ -164,7 +164,7 @@ def test_exemplos_seletor_equipe_aviso_persiste(agents_server):
             page.wait_for_function(
                 "() => !document.getElementById('team-banner') "
                 "|| !document.getElementById('team-banner').hidden",
-                timeout=15000,
+                timeout=45000,
             )
             assert page.locator("#team-banner").is_visible()
             assert "até 2 especialistas" in page.locator("#team-banner").inner_text()

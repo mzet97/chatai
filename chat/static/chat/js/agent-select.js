@@ -13,6 +13,7 @@ async function sync() {
   const modeEl = $("agent-mode");
   const selEl = $("agent-select");
   if (!modeEl || !selEl) return;
+  const seen = userTouched;
   const uuid = convUuid();
   const disabled = !uuid;
   modeEl.disabled = disabled;
@@ -24,6 +25,9 @@ async function sync() {
   } catch {
     return;
   }
+  if (seen !== userTouched) return;
+  const keptSel = selEl.value;
+  const keptMode = modeEl.value;
   selEl.innerHTML = "";
   const none = document.createElement("option");
   none.value = "";
@@ -36,6 +40,14 @@ async function sync() {
     opt.textContent = pub ? `${p.name} (r${pub.revision})` : `${p.name} (sem publicação)`;
     selEl.appendChild(opt);
   }
+  if ([...selEl.options].some((o) => o.value === keptSel && keptSel)) {
+    selEl.value = keptSel;
+    modeEl.value = keptMode;
+    if (seen !== userTouched) {
+      showTeamBanner(modeEl.value);
+      return;
+    }
+  }
   if (!uuid) {
     modeEl.value = "chat";
     showTeamBanner("chat");
@@ -43,10 +55,14 @@ async function sync() {
   }
   try {
     const conv = await api(`/api/conversations/${uuid}`);
+    if (seen !== userTouched) {
+      showTeamBanner(modeEl.value);
+      return;
+    }
     modeEl.value = conv.agent_mode || "chat";
     selEl.value = conv.agent_definition_uuid || "";
   } catch {
-    modeEl.value = "chat";
+    if (seen === userTouched) modeEl.value = "chat";
   }
   showTeamBanner(modeEl.value);
 }
@@ -61,7 +77,13 @@ function showTeamBanner(mode) {
 // antigo. A fila garante que o último estado exibido é o mais recente.
 let pushQueue = Promise.resolve();
 
+// Geração de interação: sync() em voo nunca sobrescreve escolha do usuário
+// feita depois que ele começou (evita PATCH com perfil em branco quando a
+// reconstrução das options cai entre dois selects rápidos).
+let userTouched = 0;
+
 function push() {
+  userTouched++;
   const uuid = convUuid();
   if (!uuid) return Promise.resolve();
   // Intenção capturada no momento do evento: a resposta de um envio
