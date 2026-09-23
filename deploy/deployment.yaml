@@ -2,7 +2,7 @@
 # 1 réplica: SQLite validado com 1 worker; no homelab o banco é o PG
 # dedicado externo — mesma semântica, sem lock local.
 # IMAGEM: o operador constrói e publica (ex.: harbor.home.arpa/chat-local/web:TAG)
-# e substitui harbor.home.arpa/tese/chat-local:20260922-m6-5 na aplicação. Sem Docker neste repo (proibição ativa).
+# e substitui harbor.home.arpa/tese/chat-local:20260922-m6-6 na aplicação. Sem Docker neste repo (proibição ativa).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: migrate
-          image: harbor.home.arpa/tese/chat-local:20260922-m6-5
+          image: harbor.home.arpa/tese/chat-local:20260922-m6-6
           command: ["python", "manage.py", "migrate", "--noinput"]
           envFrom:
             - configMapRef:
@@ -47,7 +47,7 @@ spec:
               memory: 512Mi
       containers:
         - name: web
-          image: harbor.home.arpa/tese/chat-local:20260922-m6-5
+          image: harbor.home.arpa/tese/chat-local:20260922-m6-6
           command:
             [
               "python",
