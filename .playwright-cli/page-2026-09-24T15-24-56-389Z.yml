@@ -1,0 +1,134 @@
+- generic [ref=f2e2]:
+  - complementary "Conversas" [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - button "Recolher barra lateral" [ref=f2e5]
+      - generic [ref=f2e8]: claude-chat-local
+    - generic [ref=f2e9]:
+      - button "Nova conversa" [ref=f2e10]
+      - generic [ref=f2e14]:
+        - generic [ref=f2e15]: Buscar conversas
+        - searchbox "Buscar conversas" [ref=f2e16]
+    - navigation "Lista de conversas" [ref=f2e17]:
+      - heading "Hoje" [level=3] [ref=f2e19]
+      - list "Hoje" [ref=f2e20]:
+        - listitem [ref=f2e21]:
+          - 'button "Abrir conversa: Ideias de onboarding" [ref=f2e22] [cursor=pointer]': Ideias de onboarding
+          - 'button "Ações de: Ideias de onboarding" [ref=f2e23]'
+        - listitem [ref=f2e26]:
+          - 'button "Abrir conversa: Revisar contrato de API" [ref=f2e27] [cursor=pointer]': Revisar contrato de API
+          - 'button "Ações de: Revisar contrato de API" [ref=f2e28]'
+        - listitem [ref=f2e31]:
+          - 'button "Abrir conversa: Planejamento do sprint de outono" [ref=f2e32] [cursor=pointer]': Planejamento do sprint de outono
+          - 'button "Ações de: Planejamento do sprint de outono" [ref=f2e33]'
+    - generic [ref=f2e36]:
+      - link "Configurações" [ref=f2e37] [cursor=pointer]:
+        - /url: /settings/
+      - link "Conhecimento" [ref=f2e41] [cursor=pointer]:
+        - /url: /knowledge/
+      - link "Agentes" [ref=f2e45] [cursor=pointer]:
+        - /url: /agents/
+      - button "Sair" [ref=f2e50] [cursor=pointer]
+  - main [ref=f2e54]:
+    - generic [ref=f2e55]:
+      - heading "Planejamento do sprint de outono" [level=1] [ref=f2e56]
+      - generic [ref=f2e57]:
+        - button "Selecionar modelo" [ref=f2e58] [cursor=pointer]:
+          - generic "Usando o modelo padrão da conta" [ref=f2e59]: Modelo padrão
+        - button "Ações da conversa" [ref=f2e62]
+    - generic [ref=f2e65]:
+      - paragraph [ref=f2e68]: Nenhuma chave configurada. O histórico continua acessível.
+      - link "Configurar conexão" [ref=f2e69] [cursor=pointer]:
+        - /url: /settings/
+    - generic "Histórico da conversa" [ref=f2e70]:
+      - generic [ref=f2e71]:
+        - article [ref=f2e72]:
+          - generic [ref=f2e73]:
+            - generic [ref=f2e74]: Você
+            - generic [ref=f2e75]: 24/09, 11:52
+          - generic [ref=f2e76]: Quais riscos vê no plano de migração?
+        - article [ref=f2e77]:
+          - generic [ref=f2e78]:
+            - generic [ref=f2e79]: Assistente
+            - generic [ref=f2e80]: 24/09, 11:52
+          - generic [ref=f2e81]:
+            - paragraph [ref=f2e82]: "Três riscos principais:"
+            - list [ref=f2e83]:
+              - listitem [ref=f2e84]:
+                - strong [ref=f2e85]: Janela de rollback curta
+                - text: — se o cut falhar às 2h, pouco tempo para reverter.
+              - listitem [ref=f2e86]:
+                - strong [ref=f2e87]: Dados órfãos
+                - text: — embeddings antigos podem vazar citações.
+              - listitem [ref=f2e88]:
+                - strong [ref=f2e89]: Equipe desalinhada
+                - text: — plantão só cobre backend.
+            - paragraph [ref=f2e90]: Sugiro checklist de go/no-go e um dry-run no domingo anterior.
+          - button "Copiar resposta" [ref=f2e92] [cursor=pointer]
+        - article [ref=f2e95]:
+          - generic [ref=f2e96]:
+            - generic [ref=f2e97]: Você
+            - generic [ref=f2e98]: 24/09, 11:52
+          - generic [ref=f2e99]: Pode detalhar o checklist?
+        - article [ref=f2e100]:
+          - generic [ref=f2e101]:
+            - generic [ref=f2e102]: Assistente
+            - generic [ref=f2e103]: 24/09, 11:52
+          - generic [ref=f2e104]:
+            - heading "Checklist go/no-go" [level=3] [ref=f2e105]
+            - table [ref=f2e107]:
+              - rowgroup [ref=f2e108]:
+                - row [ref=f2e109]:
+                  - columnheader "Item" [ref=f2e110]
+                  - columnheader "Dono" [ref=f2e111]
+                  - columnheader "Gate" [ref=f2e112]
+              - rowgroup [ref=f2e113]:
+                - row [ref=f2e114]:
+                  - cell "Backup íntegro" [ref=f2e115]
+                  - cell "Ops" [ref=f2e116]
+                  - 'cell "`integrity_check`" [ref=f2e117]'
+                - row [ref=f2e118]:
+                  - cell "Migrations aplicadas" [ref=f2e119]
+                  - cell "Backend" [ref=f2e120]
+                  - 'cell "`showmigrations`" [ref=f2e121]'
+                - row [ref=f2e122]:
+                  - 'cell "Smoke `/api/health`" [ref=f2e123]'
+                  - cell "QA" [ref=f2e124]
+                  - cell "200 + db ok" [ref=f2e125]
+            - figure [ref=f2e126]:
+              - generic [ref=f2e127]:
+                - generic [ref=f2e128]: python
+                - button "Copiar" [ref=f2e129]
+              - code [ref=f2e131]: assert health["database"] == "ok"
+            - blockquote [ref=f2e132]:
+              - paragraph [ref=f2e133]: Não avançar sem o smoke verde.
+          - button "Copiar resposta" [ref=f2e135] [cursor=pointer]
+        - article [ref=f2e138]:
+          - generic [ref=f2e139]:
+            - generic [ref=f2e140]: Você
+            - generic [ref=f2e141]: 24/09, 11:52
+          - generic [ref=f2e142]: E o plano B se o Elastic cair?
+        - article [ref=f2e143]:
+          - generic [ref=f2e144]:
+            - generic [ref=f2e145]: Assistente
+            - generic [ref=f2e146]: 24/09, 11:52
+          - paragraph [ref=f2e148]: "Modo degradado documentado: busca lexical isolada, rotulada como parcial. Sem retry silencioso de índice remoto. O usuário vê o aviso e pode reindexar depois."
+          - button "Copiar resposta" [ref=f2e150] [cursor=pointer]
+        - article [ref=f2e153]:
+          - generic [ref=f2e154]:
+            - generic [ref=f2e155]: Você
+            - generic [ref=f2e156]: 24/09, 11:52
+          - generic [ref=f2e157]: Ótimo. Resume em uma frase.
+        - article [ref=f2e158]:
+          - generic [ref=f2e159]:
+            - generic [ref=f2e160]: Assistente
+            - generic [ref=f2e161]: 24/09, 11:52
+          - paragraph [ref=f2e163]: Migrar com checklist rígido, smoke obrigatório e degradação honesta se o índice cair.
+          - button "Copiar resposta" [ref=f2e165] [cursor=pointer]
+    - status [ref=f2e168]
+    - form "Enviar mensagem" [ref=f2e169]:
+      - generic [ref=f2e170]:
+        - button "Anexar imagem" [ref=f2e171]
+        - generic [ref=f2e174]: Mensagem
+        - textbox "Mensagem" [ref=f2e175]:
+          - /placeholder: Escreva sua mensagem…
+        - button "Enviar mensagem" [disabled] [ref=f2e176]

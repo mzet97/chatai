@@ -1,0 +1,33 @@
+- main [ref=f6e2]:
+  - link "← Voltar ao chat" [ref=f6e3] [cursor=pointer]:
+    - /url: /
+  - heading "Agentes" [level=1] [ref=f6e4]
+  - paragraph [ref=f6e5]: "Perfis versionados: rascunhos são editáveis; versões publicadas são imutáveis (edite criando um rascunho). Arquivar impede nova seleção e preserva o histórico."
+  - paragraph [ref=f6e6]:
+    - button "Criar agentes de exemplo" [ref=f6e7] [cursor=pointer]
+  - status [ref=f6e8]: Nenhum agente. Crie um ou use os exemplos.
+  - region "Novo agente" [ref=f6e9]:
+    - heading "Novo agente" [level=2] [ref=f6e10]
+    - form "Criar agente" [ref=f6e11]:
+      - generic [ref=f6e12]:
+        - text: Nome
+        - textbox "Nome" [ref=f6e13]:
+          - /placeholder: "Ex.: Revisor de código…"
+      - generic [ref=f6e14]:
+        - text: Tipo
+        - combobox "Tipo" [ref=f6e15]:
+          - option "Geral" [selected]
+          - option "Pesquisador"
+          - option "Revisor"
+          - option "Coordenador"
+      - generic [ref=f6e16]:
+        - text: Descrição
+        - textbox "Descrição" [ref=f6e17]:
+          - /placeholder: (opcional)
+      - button "Criar" [ref=f6e18] [cursor=pointer]
+  - region "Agentes cadastrados" [ref=f6e19]:
+    - heading "Cadastrados" [level=2] [ref=f6e20]
+    - generic [ref=f6e21]:
+      - checkbox "Mostrar arquivados" [ref=f6e22]
+      - generic [ref=f6e23]: Mostrar arquivados
+    - list

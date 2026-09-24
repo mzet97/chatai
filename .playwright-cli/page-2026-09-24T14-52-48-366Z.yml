@@ -1,0 +1,84 @@
+- generic [ref=f2e2]:
+  - complementary "Conversas" [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - button "Recolher barra lateral" [ref=f2e5]
+      - generic [ref=f2e8]: claude-chat-local
+    - generic [ref=f2e9]:
+      - button "Nova conversa" [ref=f2e10]
+      - generic [ref=f2e14]:
+        - generic [ref=f2e15]: Buscar conversas
+        - searchbox "Buscar conversas" [ref=f2e16]
+    - navigation "Lista de conversas" [ref=f2e17]:
+      - heading "Hoje" [level=3] [ref=f2e19]
+      - list "Hoje" [ref=f2e20]:
+        - listitem [ref=f2e21]:
+          - 'button "Abrir conversa: Ideias de onboarding" [ref=f2e22]': Ideias de onboarding
+          - 'button "Ações de: Ideias de onboarding" [ref=f2e23]'
+        - listitem [ref=f2e26]:
+          - 'button "Abrir conversa: Revisar contrato de API" [ref=f2e27]': Revisar contrato de API
+          - 'button "Ações de: Revisar contrato de API" [ref=f2e28]'
+        - listitem [ref=f2e31]:
+          - 'button "Abrir conversa: Planejamento do sprint de outono" [ref=f2e32]': Planejamento do sprint de outono
+          - 'button "Ações de: Planejamento do sprint de outono" [ref=f2e33]'
+    - generic [ref=f2e36]:
+      - link "Configurações" [ref=f2e37] [cursor=pointer]:
+        - /url: /settings/
+      - link "Conhecimento" [ref=f2e41] [cursor=pointer]:
+        - /url: /knowledge/
+      - link "Agentes" [ref=f2e45] [cursor=pointer]:
+        - /url: /agents/
+      - button "Sair" [ref=f2e50]
+  - main [ref=f2e54]:
+    - generic [ref=f2e55]:
+      - heading "Nova conversa" [level=1] [ref=f2e56]
+      - generic [ref=f2e57]:
+        - button "Selecionar modelo" [ref=f2e58]:
+          - generic "Usando o modelo padrão da conta" [ref=f2e59]: Modelo padrão
+        - generic [ref=f2e62]:
+          - generic [ref=f2e63]: Nível de variação
+          - combobox "Nível de variação Ajusta a variação das próximas respostas. Um nível maior não garante mais precisão." [ref=f2e64] [cursor=pointer]:
+            - option "Baixo"
+            - option "Médio" [selected]
+            - option "Alto"
+          - generic [ref=f2e65]: Ajusta a variação das próximas respostas. Um nível maior não garante mais precisão.
+        - button "Ferramentas da conversa" [ref=f2e66]:
+          - generic [ref=f2e67]: Ferramentas
+        - button "Fontes da conversa" [ref=f2e70]:
+          - generic [ref=f2e71]: Fontes
+        - button "Pensamento da conversa" [ref=f2e74]:
+          - generic [ref=f2e75]: Pensamento
+        - generic [ref=f2e78]:
+          - generic [ref=f2e79]: Modo da conversa
+          - combobox "Modo da conversa" [disabled] [ref=f2e80]:
+            - option "Chat" [selected]
+            - option "Agente"
+            - option "Equipe"
+        - generic [ref=f2e81]:
+          - generic [ref=f2e82]: Perfil do agente
+          - combobox "Perfil do agente" [disabled] [ref=f2e83]:
+            - option "Sem perfis (ver Agentes)" [selected]
+        - generic "Exibe a resposta conforme ela é gerada." [ref=f2e84] [cursor=pointer]:
+          - 'checkbox "Streaming Exibe a resposta conforme ela é gerada. Desligado: a resposta será exibida ao terminar." [checked] [ref=f2e85]'
+          - generic [ref=f2e88]: Streaming
+          - generic [ref=f2e89]: "Exibe a resposta conforme ela é gerada. Desligado: a resposta será exibida ao terminar."
+        - button "Ações da conversa" [ref=f2e90]
+    - generic "Histórico da conversa" [ref=f2e93]
+    - region "Começar" [ref=f2e94]:
+      - heading "O que vamos explorar?" [level=2] [ref=f2e95]
+      - paragraph [ref=f2e96]: Converse, teste prompts e acompanhe o contexto enviado à IA.
+      - list [ref=f2e97]:
+        - listitem [ref=f2e98]:
+          - button "Entender um conceito" [ref=f2e99]
+        - listitem [ref=f2e100]:
+          - button "Revisar um código" [ref=f2e101]
+        - listitem [ref=f2e102]:
+          - button "Testar um prompt" [ref=f2e103]
+      - paragraph [ref=f2e104]: Histórico salvo neste dispositivo. As mensagens enviadas são processadas pela Anthropic.
+    - status [ref=f2e105]
+    - form "Enviar mensagem" [ref=f2e106]:
+      - generic [ref=f2e107]:
+        - button "Anexar imagem" [ref=f2e108]
+        - generic [ref=f2e111]: Mensagem
+        - textbox "Mensagem" [ref=f2e112]:
+          - /placeholder: Escreva sua mensagem…
+        - button "Enviar mensagem" [disabled] [ref=f2e113]

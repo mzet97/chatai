@@ -122,6 +122,7 @@ def test_browser_critical_flows(browser_server):
 
             # Switch Streaming: rótulo, estado padrão, teclado, persistência e rascunho.
             page.goto(conv_url)  # volta à conversa criada pelo envio acima
+            page.evaluate("() => document.body.classList.add('head-expanded')")
             page.wait_for_selector("#stream-toggle", timeout=10000)
             assert page.locator("#stream-wrap").inner_text().strip().startswith("Streaming")
             assert page.locator("#stream-toggle").is_checked()  # novas conversas: ativado
@@ -144,6 +145,7 @@ def test_browser_critical_flows(browser_server):
             assert not page.locator("#stream-toggle").is_checked()  # veio do backend
             # Mobile: switch do header some, item do menu ⋯ assume.
             page.set_viewport_size({"width": 390, "height": 844})
+            page.evaluate("() => document.body.classList.add('side-hidden')")
             assert not page.locator("#stream-wrap").is_visible()
             page.click("#actions-btn")
             assert page.locator("#stream-menuitem").is_visible()
@@ -156,6 +158,7 @@ def test_browser_critical_flows(browser_server):
             page.set_viewport_size({"width": 1280, "height": 800})
 
             # M5 Ferramentas: popover abre, catálogo lista locais, toggle persiste.
+            page.evaluate("() => document.body.classList.add('head-expanded')")
             page.click("#tools-btn")
             page.wait_for_selector("#tools-list .tool-check", timeout=10000)
             names = page.locator("#tools-list .tool-name").all_inner_texts()

@@ -177,11 +177,14 @@ async def execute_authorized(
     approval: dict | None,
     records: list[ToolRecord] | None = None,
     run_uuid: str = "",
+    mcp_call=None,
 ) -> dict:
     """Fluxo M2: valida → exige aprovação quando `require` → executa.
 
     Sem aprovação válida retorna `approval_required` + `approval_id` (a linha é
-    criada/reutilizada aqui); nunca executa escrita sem decisão consumida."""
+    criada/reutilizada aqui); nunca executa escrita sem decisão consumida.
+    `mcp_call` é seam de teste; em produção o transporte MCP é resolvido da
+    conexão do registro (T6) — sem isso a ferramenta morria em `unavailable`."""
     from asgiref.sync import sync_to_async
 
     from chat.services.tools import approvals as _approvals
@@ -225,7 +228,11 @@ async def execute_authorized(
     ctx_with_id = ExecutionContext(
         user_id=ctx.user_id, conversation_id=ctx.conversation_id, tool_use_id=tool_use_id
     )
-    return await execute(anthropic_name, args, ctx_with_id, recs)
+    if rec.origin == "mcp" and mcp_call is None:
+        from chat.services.tools.discovery import make_mcp_call
+
+        mcp_call = make_mcp_call(rec, user_id=ctx.user_id)
+    return await execute(anthropic_name, args, ctx_with_id, recs, mcp_call=mcp_call)
 
 
 def _owner_of(user_id: int):

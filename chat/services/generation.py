@@ -8,6 +8,7 @@ segura transação aberta durante espera de rede.
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import os
 import time
@@ -781,6 +782,10 @@ async def execute_run(run_id: str, *, user, client=None):
 
             tool_catalog = [*tool_catalog, _team.delegate_record()]
     snapshot["tools_enabled"] = [r.stable_id for r in tool_catalog]
+    # C1: o loop de ferramentas parte do MESMO payload reconstruído do SQLite
+    # (histórico + atual). Sem isto o 1º `messages.create` ia com lista vazia.
+    tool_base_messages = copy.deepcopy(built.messages)
+    snapshot["tool_base_messages"] = tool_base_messages
     # Contexto protocolar versionado (M4/TV-3.3): compara o prefixo deste
     # turno com o da execução anterior da conversa (só hashes, sem Base64).
     previous = await sync_to_async(_previous_protocol)(conversation.id, run_id)
@@ -845,6 +850,7 @@ async def execute_run(run_id: str, *, user, client=None):
             live=live,
             catalog=tool_catalog,
             snapshot=snapshot,
+            base_messages=tool_base_messages,
             vision=vision,
             delegate=delegate,
         ):
@@ -1415,6 +1421,7 @@ async def _execute_tool_path(
     live,
     catalog,
     snapshot,
+    base_messages=None,
     vision=None,
     delegate=None,
 ):
@@ -1423,7 +1430,13 @@ async def _execute_tool_path(
     from chat.services.tools.context import ExecutionContext
 
     ctx = ExecutionContext(user_id=user.pk, conversation_id=conversation.pk, run_uuid=str(run_id))
-    state = LoopState(messages=[dict(m) for m in _tool_base_messages(snapshot)])
+    # Preferir o payload em memória (cópia profunda já feita); snapshot é fallback
+    # para retomada/replay. Nunca iniciar o loop com lista vazia se houver contexto.
+    if base_messages is not None:
+        initial_messages = [copy.deepcopy(m) for m in base_messages]
+    else:
+        initial_messages = [copy.deepcopy(m) for m in _tool_base_messages(snapshot)]
+    state = LoopState(messages=initial_messages)
     agen = run_tool_events(
         client=client,
         model=model,

@@ -76,6 +76,26 @@ async function loadConversations(q = "") {
   listEl.innerHTML = "";
   document.querySelectorAll(".conv-group").forEach((g) => g.remove());
   $("conv-empty").hidden = data.results.length > 0;
+  if (data.results.length === 0) {
+    const empty = $("conv-empty");
+    empty.textContent = "";
+    if (!q) {
+      empty.textContent = "Nenhuma conversa ainda.";
+    } else {
+      empty.textContent = "Nada para “" + q + "”. ";
+      const clearBtn = document.createElement("button");
+      clearBtn.id = "conv-clear-search";
+      clearBtn.className = "linklike";
+      clearBtn.type = "button";
+      clearBtn.textContent = "Limpar busca";
+      clearBtn.addEventListener("click", () => {
+        $("search").value = "";
+        loadConversations("");
+        $("search").focus();
+      });
+      empty.append(clearBtn);
+    }
+  }
   $("search-clear").hidden = !q;
   let lastGroup = null;
   for (const c of data.results) {
@@ -162,7 +182,10 @@ function rowMenu(anchor, c) {
 let openPop = null;
 function closePops() {
   document.querySelectorAll(".popover.rowmenu").forEach((p) => p.remove());
-  for (const id of ["model-pop", "actions-pop", "tools-pop", "sources-pop"]) $(id).hidden = true;
+  for (const id of ["model-pop", "actions-pop", "tools-pop", "sources-pop", "thinking-pop"]) {
+    const el = $(id);
+    if (el) el.hidden = true;
+  }
   $("model-btn").setAttribute("aria-expanded", "false");
   $("tools-btn").setAttribute("aria-expanded", "false");
   $("sources-btn").setAttribute("aria-expanded", "false");
@@ -1664,9 +1687,27 @@ $("actions-btn").addEventListener("click", () => {
 $("actions-pop").addEventListener("click", (e) => {
   const act = e.target.closest("[data-act]");
   if (!act) return;
+  const kind = act.dataset.act;
   closePops();
-  if (act.dataset.act === "conv-settings") openConvDialog();
-  if (act.dataset.act === "details") {
+  if (kind === "more") {
+    const on = document.body.classList.toggle("head-expanded");
+    try { localStorage.setItem("cc-head-expanded", on ? "1" : "0"); } catch (_) {}
+    return;
+  }
+  if (kind === "tools-panel") {
+    $("tools-btn").click();
+    return;
+  }
+  if (kind === "sources-panel") {
+    $("sources-btn").click();
+    return;
+  }
+  if (kind === "thinking-panel") {
+    $("thinking-btn").click();
+    return;
+  }
+  if (kind === "conv-settings") openConvDialog();
+  if (kind === "details") {
     const nodes = [...msgEl.querySelectorAll(".turn")].filter((n) => n.dataset.runId);
     if (nodes.length) openInspector(nodes[nodes.length - 1].dataset.runId, true);
     else setStatus("Nenhuma execução nesta sessão para inspecionar.");
@@ -1777,6 +1818,9 @@ window.addEventListener("beforeunload", () => {
   if (activeRun && aborter) aborter.abort();
 });
 
+try {
+  if (localStorage.getItem("cc-head-expanded") === "1") document.body.classList.add("head-expanded");
+} catch (_) {}
 await loadConversations();
 await loadConversation();
 await refreshKeyBanner();

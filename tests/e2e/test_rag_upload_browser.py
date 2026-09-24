@@ -203,6 +203,7 @@ def test_upload_publica_e_recupera_na_conversa(upload_server, tmp_path):
             # Aguarda o fim do run (sem chave: falha rápida e digna).
             page.wait_for_selector("#btn-stop", state="hidden", timeout=60000)
             # Fontes → Enviar documentos, rascunho preservado.
+            page.evaluate("() => document.body.classList.add('head-expanded')")
             page.wait_for_selector("#sources-btn", timeout=10000)
             page.fill("#input", "rascunho-aurora")
             page.click("#sources-btn")

@@ -200,3 +200,41 @@ def test_endpoints_gating(logged_client, conversation):
         content_type="application/json",
     )
     assert bad.status_code == 404
+
+
+async def test_tool_path_envia_historico_reconstruido(user, conversation):
+    """C1: 1º messages.create do loop de tools carrega o payload do SQLite
+    (nunca lista vazia) — invariante de payload reconstruído no ramo tools."""
+    from chat.models import Message
+    from chat.models_tools import ConversationToolPrefs
+
+    await adb(Message.objects.create)(
+        conversation=conversation, seq=1, role="user", text="guarda: abacaxi", state="ok"
+    )
+    await adb(Message.objects.create)(
+        conversation=conversation, seq=2, role="assistant", text="guardado", state="ok"
+    )
+    await adb(ConversationToolPrefs.objects.create)(
+        conversation=conversation, enabled=["local:calculate"]
+    )
+    run, _, _ = await adb(reserve_run)(
+        conversation=conversation, content="quanto é 2+3?", idempotency_key="k-c1-base"
+    )
+    tool_msg = FakeToolMessage(
+        [FakeToolUseBlock("tu_c1", "local__calculate", {"op": "add", "a": 2, "b": 3})]
+    )
+    client = FakeClient(FakeMessagesNamespace(create_results=[tool_msg, FakeFinalMessage("5")]))
+    events = await _collect(execute_run(str(run.uuid), user=user, client=client))
+    assert [e["type"] for e in events][-1] == "done"
+    creates = client.messages.calls["create"]
+    assert creates, "loop de tools não chamou o provedor"
+    first = creates[0]
+    msgs = first.get("messages") or []
+    assert msgs, "tool path iniciou com messages=[] (C1)"
+    roles = [m.get("role") for m in msgs]
+    assert roles[0] == "user"
+    flat = str(msgs)
+    assert "abacaxi" in flat  # histórico reconstruído
+    assert "2+3" in flat  # mensagem atual
+    # system do caminho textual deve acompanhar o tool path
+    assert first.get("system"), "system ausente no tool path"

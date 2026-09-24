@@ -1,33 +1,67 @@
-/* Tokens centrais — única fonte de cor, tipo, raio e espaçamento. */
+/* Liquid Glass — única fonte de cor, tipo, raio, sombra e motion. */
 :root {
   color-scheme: light;
-  --bg-app: #f7f6f2;
-  --bg-sidebar: #f0efeb;
-  --bg-surface: #ffffff;
-  --bg-subtle: #eaeae3;
-  --bg-hover: #e6e5dd;
-  --bg-selected: #dcd9cd;
-  --text-primary: #20211f;
-  --text-secondary: #62655f;
-  --border-subtle: #dddfd6;
-  --border-control: #7e8278;
-  --accent: #a44732;
+  /* canvas luminoso */
+  --bg-app: #eef1f6;
+  --bg-app-2: #f7f8fb;
+  --bg-mesh-a: rgba(120, 160, 255, 0.22);
+  --bg-mesh-b: rgba(255, 170, 140, 0.16);
+  --bg-mesh-c: rgba(180, 140, 255, 0.12);
+
+  /* superfícies */
+  --bg-surface: rgba(255, 255, 255, 0.72);
+  --bg-surface-solid: #f8f9fb;
+  --bg-sidebar: rgba(246, 248, 252, 0.64);
+  --bg-subtle: rgba(255, 255, 255, 0.48);
+  --bg-hover: rgba(255, 255, 255, 0.64);
+  --bg-selected: rgba(10, 132, 255, 0.14);
+
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-tertiary: #98989d;
+
+  --border-subtle: rgba(255, 255, 255, 0.55);
+  --border-control: rgba(60, 60, 67, 0.18);
+  --border-strong: rgba(60, 60, 67, 0.28);
+
+  /* acento Apple */
+  --accent: #0071e3;
   --on-accent: #ffffff;
-  --accent-hover: #8d3c2a;
-  --focus-ring: #a44732;
-  --danger: #b3261e;
+  --accent-hover: #0077ed;
+  --accent-soft: rgba(0, 113, 227, 0.12);
+  --focus-ring: #0071e3;
+
+  --danger: #ff3b30;
   --on-danger: #ffffff;
-  --warning-bg: #faf3e3;
-  --warning-border: #d9c48f;
-  --warning-text: #5f4a1e;
-  --success: #2f6b3a;
-  --shadow-pop: 0 8px 28px rgba(32, 33, 31, 0.16);
-  --radius-control: 0.625rem;
-  --radius-panel: 0.875rem;
-  --radius-composer: 1.125rem;
-  --sidebar-width: 16rem;
-  --reading-width: 48rem;
-  --header-height: 3.5rem;
+  --warning-bg: rgba(255, 204, 0, 0.18);
+  --warning-border: rgba(255, 159, 10, 0.35);
+  --warning-text: #8a5a00;
+  --success: #34c759;
+
+  /* glass */
+  --glass-blur: 28px;
+  --glass-saturate: 1.6;
+  --glass-fill: rgba(255, 255, 255, 0.55);
+  --glass-fill-thick: rgba(255, 255, 255, 0.72);
+  --glass-fill-quiet: rgba(255, 255, 255, 0.38);
+  --glass-edge: rgba(255, 255, 255, 0.65);
+  --glass-highlight: rgba(255, 255, 255, 0.85);
+  --glass-inner: rgba(255, 255, 255, 0.2);
+
+  --shadow-pop: 0 12px 40px rgba(29, 29, 31, 0.14), 0 2px 8px rgba(29, 29, 31, 0.06);
+  --shadow-soft: 0 4px 16px rgba(29, 29, 31, 0.08);
+  --shadow-float: 0 20px 50px rgba(29, 29, 31, 0.16);
+
+  --radius-control: 0.75rem;
+  --radius-panel: 1.125rem;
+  --radius-composer: 1.5rem;
+  --radius-glass: 1.25rem;
+  --radius-pill: 999px;
+
+  --sidebar-width: 17rem;
+  --reading-width: 46rem;
+  --header-height: 3.75rem;
+
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -35,44 +69,101 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
   --space-12: 3rem;
-  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --font-editorial: Georgia, serif;
-  --code-bg: #232622;
-  --code-fg: #eceee6;
-  --code-inline-bg: rgba(32, 33, 31, 0.07);
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-editorial: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+
+  --code-bg: rgba(28, 30, 32, 0.92);
+  --code-fg: #f5f5f7;
+  --code-inline-bg: rgba(120, 120, 128, 0.14);
+
+  --motion-fast: 160ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --motion-spring: 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg-app: #191a18;
-  --bg-sidebar: #141512;
-  --bg-surface: #242622;
-  --bg-subtle: #30332c;
-  --bg-hover: #353930;
-  --bg-selected: #41463b;
-  --text-primary: #eeefe9;
-  --text-secondary: #acb0a5;
-  --border-subtle: #3b3f35;
-  --border-control: #82877b;
-  --accent: #e6a38d;
-  --on-accent: #191a18;
-  --accent-hover: #f0b9a3;
-  --focus-ring: #e6a38d;
-  --danger: #f2b8b0;
-  --on-danger: #191a18;
-  --warning-bg: #2b2718;
-  --warning-border: #6b5f36;
-  --warning-text: #e3d3a3;
-  --success: #9fd3a8;
-  --shadow-pop: 0 10px 32px rgba(0, 0, 0, 0.5);
-  --code-bg: #101210;
-  --code-fg: #eceee6;
-  --code-inline-bg: rgba(238, 239, 233, 0.1);
+  --bg-app: #0b0c0e;
+  --bg-app-2: #12141a;
+  --bg-mesh-a: rgba(40, 80, 180, 0.28);
+  --bg-mesh-b: rgba(120, 60, 40, 0.18);
+  --bg-mesh-c: rgba(90, 50, 140, 0.16);
+
+  --bg-surface: rgba(36, 38, 42, 0.64);
+  --bg-surface-solid: #1c1d21;
+  --bg-sidebar: rgba(22, 24, 28, 0.58);
+  --bg-subtle: rgba(255, 255, 255, 0.06);
+  --bg-hover: rgba(255, 255, 255, 0.1);
+  --bg-selected: rgba(10, 132, 255, 0.22);
+
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-tertiary: #6e6e73;
+
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-control: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  --accent: #0a84ff;
+  --on-accent: #ffffff;
+  --accent-hover: #3395ff;
+  --accent-soft: rgba(10, 132, 255, 0.18);
+  --focus-ring: #0a84ff;
+
+  --danger: #ff453a;
+  --on-danger: #ffffff;
+  --warning-bg: rgba(255, 204, 0, 0.12);
+  --warning-border: rgba(255, 159, 10, 0.3);
+  --warning-text: #ffd60a;
+  --success: #30d158;
+
+  --glass-blur: 40px;
+  --glass-saturate: 1.4;
+  --glass-fill: rgba(40, 42, 48, 0.52);
+  --glass-fill-thick: rgba(32, 34, 40, 0.7);
+  --glass-fill-quiet: rgba(255, 255, 255, 0.06);
+  --glass-edge: rgba(255, 255, 255, 0.12);
+  --glass-highlight: rgba(255, 255, 255, 0.14);
+  --glass-inner: rgba(255, 255, 255, 0.04);
+
+  --shadow-pop: 0 16px 48px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 24px 56px rgba(0, 0, 0, 0.55);
+
+  --code-bg: rgba(10, 11, 13, 0.88);
+  --code-fg: #f5f5f7;
+  --code-inline-bg: rgba(255, 255, 255, 0.1);
 }
 
-/* O atributo hidden sempre vence: regras de display por classe não podem reabrir popovers. */
 [hidden] { display: none !important; }
+
+/* Fallback sem backdrop-filter: fill sólido legível. */
+@supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+  :root {
+    --glass-fill: var(--bg-surface-solid);
+    --glass-fill-thick: var(--bg-surface-solid);
+    --glass-fill-quiet: var(--bg-surface-solid);
+    --bg-sidebar: var(--bg-surface-solid);
+    --bg-surface: var(--bg-surface-solid);
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --glass-fill: rgba(255, 255, 255, 0.92);
+    --glass-fill-thick: #fff;
+    --glass-blur: 8px;
+    --border-control: rgba(0, 0, 0, 0.45);
+    --text-secondary: #3a3a3c;
+  }
+  [data-theme="dark"] {
+    --glass-fill: rgba(28, 28, 30, 0.94);
+    --glass-fill-thick: #1c1c1e;
+    --border-control: rgba(255, 255, 255, 0.35);
+    --text-secondary: #d1d1d6;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

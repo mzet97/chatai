@@ -1,0 +1,73 @@
+- generic [ref=f7e2]:
+  - complementary "Conversas" [ref=f7e3]:
+    - generic [ref=f7e4]:
+      - button "Recolher barra lateral" [ref=f7e5]
+      - generic [ref=f7e8]: claude-chat-local
+    - generic [ref=f7e9]:
+      - button "Nova conversa" [ref=f7e10]
+      - generic [ref=f7e14]:
+        - generic [ref=f7e15]: Buscar conversas
+        - searchbox "Buscar conversas" [ref=f7e16]
+    - navigation "Lista de conversas" [ref=f7e17]:
+      - heading "Hoje" [level=3] [ref=f7e19]
+      - list "Hoje" [ref=f7e20]:
+        - listitem [ref=f7e21]:
+          - 'button "Abrir conversa: Ideias de onboarding" [ref=f7e22]': Ideias de onboarding
+          - 'button "Ações de: Ideias de onboarding" [ref=f7e23]'
+        - listitem [ref=f7e26]:
+          - 'button "Abrir conversa: Revisar contrato de API" [ref=f7e27]': Revisar contrato de API
+          - 'button "Ações de: Revisar contrato de API" [ref=f7e28]'
+        - listitem [ref=f7e31]:
+          - 'button "Abrir conversa: Planejamento do sprint de outono" [ref=f7e32]': Planejamento do sprint de outono
+          - 'button "Ações de: Planejamento do sprint de outono" [ref=f7e33]'
+    - generic [ref=f7e36]:
+      - link "Configurações" [ref=f7e37] [cursor=pointer]:
+        - /url: /settings/
+      - link "Conhecimento" [ref=f7e41] [cursor=pointer]:
+        - /url: /knowledge/
+      - link "Agentes" [ref=f7e45] [cursor=pointer]:
+        - /url: /agents/
+      - button "Sair" [ref=f7e50]
+  - main [ref=f7e54]:
+    - generic [ref=f7e55]:
+      - heading "Nova conversa" [level=1] [ref=f7e56]
+      - generic [ref=f7e57]:
+        - button "Selecionar modelo" [ref=f7e58]:
+          - generic [ref=f7e59]: Modelo
+        - generic [ref=f7e62]:
+          - generic [ref=f7e63]: Nível de variação
+          - combobox "Nível de variação Ajusta a variação das próximas respostas. Um nível maior não garante mais precisão." [disabled] [ref=f7e64]:
+            - option "Baixo"
+            - option "Médio" [selected]
+            - option "Alto"
+          - generic [ref=f7e65]: Ajusta a variação das próximas respostas. Um nível maior não garante mais precisão.
+        - button "Ferramentas da conversa" [ref=f7e66]:
+          - generic [ref=f7e67]: Ferramentas
+        - button "Fontes da conversa" [ref=f7e70]:
+          - generic [ref=f7e71]: Fontes
+        - button "Pensamento da conversa" [ref=f7e74]:
+          - generic [ref=f7e75]: Pensamento
+        - generic [ref=f7e78]:
+          - generic [ref=f7e79]: Modo da conversa
+          - combobox "Modo da conversa" [ref=f7e80] [cursor=pointer]:
+            - option "Chat" [selected]
+            - option "Agente"
+            - option "Equipe"
+        - generic [ref=f7e81]:
+          - generic [ref=f7e82]: Perfil do agente
+          - combobox "Perfil do agente" [ref=f7e83] [cursor=pointer]:
+            - option "Sem perfis (ver Agentes)" [selected]
+        - generic "Exibe a resposta conforme ela é gerada." [ref=f7e84] [cursor=pointer]:
+          - 'checkbox "Streaming Exibe a resposta conforme ela é gerada. Desligado: a resposta será exibida ao terminar." [checked] [ref=f7e85]'
+          - generic [ref=f7e88]: Streaming
+          - generic [ref=f7e89]: "Exibe a resposta conforme ela é gerada. Desligado: a resposta será exibida ao terminar."
+        - button "Ações da conversa" [ref=f7e90]
+    - generic "Histórico da conversa" [ref=f7e93]
+    - status [ref=f7e99]: Carregando…
+    - form "Enviar mensagem" [ref=f7e100]:
+      - generic [ref=f7e101]:
+        - button "Anexar imagem" [ref=f7e102]
+        - generic [ref=f7e105]: Mensagem
+        - textbox "Mensagem" [ref=f7e106]:
+          - /placeholder: Escreva sua mensagem…
+        - button "Enviar mensagem" [disabled] [ref=f7e107]

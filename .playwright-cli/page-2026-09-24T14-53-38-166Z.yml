@@ -1,0 +1,161 @@
+- generic [ref=f7e2]:
+  - complementary "Conversas" [ref=f7e3]:
+    - generic [ref=f7e4]:
+      - button "Recolher barra lateral" [ref=f7e5]
+      - generic [ref=f7e8]: claude-chat-local
+    - generic [ref=f7e9]:
+      - button "Nova conversa" [ref=f7e10]
+      - generic [ref=f7e14]:
+        - generic [ref=f7e15]: Buscar conversas
+        - searchbox "Buscar conversas" [ref=f7e16]: zzz-nao-existe
+        - button "Limpar busca" [ref=f7e214]
+    - navigation "Lista de conversas" [ref=f7e17]:
+      - list
+      - paragraph [ref=f7e217]:
+        - text: Nenhuma conversa encontrada.
+        - button "Limpar busca" [ref=f7e218] [cursor=pointer]
+    - generic [ref=f7e36]:
+      - link "Configurações" [ref=f7e37] [cursor=pointer]:
+        - /url: /settings/
+      - link "Conhecimento" [ref=f7e41] [cursor=pointer]:
+        - /url: /knowledge/
+      - link "Agentes" [ref=f7e45] [cursor=pointer]:
+        - /url: /agents/
+      - button "Sair" [ref=f7e50]
+  - main [ref=f7e54]:
+    - generic [ref=f7e55]:
+      - heading "Planejamento do sprint de outono" [level=1] [ref=f7e110]
+      - generic [ref=f7e57]:
+        - button "Selecionar modelo" [expanded] [ref=f7e58]:
+          - generic "Usando o modelo padrão da conta" [ref=f7e111]: Modelo padrão
+        - generic [ref=f7e62]:
+          - generic [ref=f7e63]: Nível de variação
+          - combobox "Nível de variação Ajusta a variação das próximas respostas. Um nível maior não garante mais precisão." [disabled] [ref=f7e64]:
+            - option "Baixo"
+            - option "Médio" [selected]
+            - option "Alto"
+          - generic [ref=f7e65]: Ajusta a variação das próximas respostas. Um nível maior não garante mais precisão.
+        - button "Ferramentas da conversa" [ref=f7e66]:
+          - generic [ref=f7e67]: Ferramentas
+        - button "Fontes da conversa" [ref=f7e70]:
+          - generic [ref=f7e71]: Fontes
+        - button "Pensamento da conversa" [ref=f7e74]:
+          - generic [ref=f7e75]: Pensamento
+        - generic [ref=f7e78]:
+          - generic [ref=f7e79]: Modo da conversa
+          - combobox "Modo da conversa" [ref=f7e80] [cursor=pointer]:
+            - option "Chat" [selected]
+            - option "Agente"
+            - option "Equipe"
+        - generic [ref=f7e81]:
+          - generic [ref=f7e82]: Perfil do agente
+          - combobox "Perfil do agente" [ref=f7e83] [cursor=pointer]:
+            - option "Sem perfis (ver Agentes)" [selected]
+        - generic "Exibe a resposta conforme ela é gerada." [ref=f7e84] [cursor=pointer]:
+          - 'checkbox "Streaming Exibe a resposta conforme ela é gerada. Desligado: a resposta será exibida ao terminar." [checked] [ref=f7e85]'
+          - generic [ref=f7e88]: Streaming
+          - generic [ref=f7e89]: "Exibe a resposta conforme ela é gerada. Desligado: a resposta será exibida ao terminar."
+        - button "Ações da conversa" [ref=f7e90]
+      - listbox "Modelos disponíveis" [ref=f7e219]:
+        - generic [ref=f7e220]:
+          - searchbox "Buscar modelo" [active] [ref=f7e221]
+          - button "Atualizar catálogo de modelos" [ref=f7e222]
+        - status [ref=f7e225]: "Erro ao carregar: Nenhuma chave configurada."
+        - list
+    - generic [ref=f7e112]:
+      - paragraph [ref=f7e115]: Nenhuma chave configurada. O histórico continua acessível.
+      - link "Configurar conexão" [ref=f7e116] [cursor=pointer]:
+        - /url: /settings/
+    - generic "Histórico da conversa" [ref=f7e93]:
+      - generic [ref=f7e117]:
+        - article [ref=f7e118]:
+          - generic [ref=f7e119]:
+            - generic [ref=f7e120]: Você
+            - generic [ref=f7e121]: 24/09, 11:52
+          - generic [ref=f7e122]: Quais riscos vê no plano de migração?
+        - article [ref=f7e123]:
+          - generic [ref=f7e124]:
+            - generic [ref=f7e125]: Assistente
+            - generic [ref=f7e126]: 24/09, 11:52
+          - generic [ref=f7e127]:
+            - paragraph [ref=f7e128]: "Três riscos principais:"
+            - list [ref=f7e129]:
+              - listitem [ref=f7e130]:
+                - strong [ref=f7e131]: Janela de rollback curta
+                - text: — se o cut falhar às 2h, pouco tempo para reverter.
+              - listitem [ref=f7e132]:
+                - strong [ref=f7e133]: Dados órfãos
+                - text: — embeddings antigos podem vazar citações.
+              - listitem [ref=f7e134]:
+                - strong [ref=f7e135]: Equipe desalinhada
+                - text: — plantão só cobre backend.
+            - paragraph [ref=f7e136]: Sugiro checklist de go/no-go e um dry-run no domingo anterior.
+          - button "Copiar resposta" [ref=f7e138]
+        - article [ref=f7e141]:
+          - generic [ref=f7e142]:
+            - generic [ref=f7e143]: Você
+            - generic [ref=f7e144]: 24/09, 11:52
+          - generic [ref=f7e145]: Pode detalhar o checklist?
+        - article [ref=f7e146]:
+          - generic [ref=f7e147]:
+            - generic [ref=f7e148]: Assistente
+            - generic [ref=f7e149]: 24/09, 11:52
+          - generic [ref=f7e150]:
+            - heading "Checklist go/no-go" [level=3] [ref=f7e151]
+            - table [ref=f7e153]:
+              - rowgroup [ref=f7e154]:
+                - row [ref=f7e155]:
+                  - columnheader "Item" [ref=f7e156]
+                  - columnheader "Dono" [ref=f7e157]
+                  - columnheader "Gate" [ref=f7e158]
+              - rowgroup [ref=f7e159]:
+                - row [ref=f7e160]:
+                  - cell "Backup íntegro" [ref=f7e161]
+                  - cell "Ops" [ref=f7e162]
+                  - 'cell "`integrity_check`" [ref=f7e163]'
+                - row [ref=f7e164]:
+                  - cell "Migrations aplicadas" [ref=f7e165]
+                  - cell "Backend" [ref=f7e166]
+                  - 'cell "`showmigrations`" [ref=f7e167]'
+                - row [ref=f7e168]:
+                  - 'cell "Smoke `/api/health`" [ref=f7e169]'
+                  - cell "QA" [ref=f7e170]
+                  - cell "200 + db ok" [ref=f7e171]
+            - figure [ref=f7e172]:
+              - generic [ref=f7e173]:
+                - generic [ref=f7e174]: python
+                - button "Copiar" [ref=f7e175]
+              - code [ref=f7e177]: assert health["database"] == "ok"
+            - blockquote [ref=f7e178]:
+              - paragraph [ref=f7e179]: Não avançar sem o smoke verde.
+          - button "Copiar resposta" [ref=f7e181]
+        - article [ref=f7e184]:
+          - generic [ref=f7e185]:
+            - generic [ref=f7e186]: Você
+            - generic [ref=f7e187]: 24/09, 11:52
+          - generic [ref=f7e188]: E o plano B se o Elastic cair?
+        - article [ref=f7e189]:
+          - generic [ref=f7e190]:
+            - generic [ref=f7e191]: Assistente
+            - generic [ref=f7e192]: 24/09, 11:52
+          - paragraph [ref=f7e194]: "Modo degradado documentado: busca lexical isolada, rotulada como parcial. Sem retry silencioso de índice remoto. O usuário vê o aviso e pode reindexar depois."
+          - button "Copiar resposta" [ref=f7e196]
+        - article [ref=f7e199]:
+          - generic [ref=f7e200]:
+            - generic [ref=f7e201]: Você
+            - generic [ref=f7e202]: 24/09, 11:52
+          - generic [ref=f7e203]: Ótimo. Resume em uma frase.
+        - article [ref=f7e204]:
+          - generic [ref=f7e205]:
+            - generic [ref=f7e206]: Assistente
+            - generic [ref=f7e207]: 24/09, 11:52
+          - paragraph [ref=f7e209]: Migrar com checklist rígido, smoke obrigatório e degradação honesta se o índice cair.
+          - button "Copiar resposta" [ref=f7e211]
+    - status [ref=f7e99]
+    - form "Enviar mensagem" [ref=f7e100]:
+      - generic [ref=f7e101]:
+        - button "Anexar imagem" [ref=f7e102]
+        - generic [ref=f7e105]: Mensagem
+        - textbox "Mensagem" [ref=f7e106]:
+          - /placeholder: Escreva sua mensagem…
+        - button "Enviar mensagem" [disabled] [ref=f7e107]

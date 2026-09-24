@@ -5,12 +5,19 @@ import os
 import subprocess
 import sys
 
+import pytest
+from asgiref.sync import sync_to_async as _sync_to_async
+
 from chat.services.tools import mcp_client
 from chat.services.tools.registry import ToolRecord, anthropic_name_for
+
+_adb = _sync_to_async
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SERVER = os.path.join(ROOT, "mcp_servers", "study_lessons", "server.py")
 PYTHON = sys.executable
+
+pytestmark = pytest.mark.django_db(transaction=True)
 
 
 def _stdio():
@@ -93,3 +100,89 @@ async def test_ciclo_executor_rota_mcp():
         mcp_call=fake_mcp,
     )
     assert out["ok"] and "fictícia" in out["text"]
+
+
+async def test_execute_authorized_pluga_transporte_mcp(user, conversation):
+    """C2: execute_authorized resolve o transporte da conexão (não `unavailable`)."""
+    import uuid as uuid_mod
+
+    from chat.models_tools import MCPConnection
+    from chat.services.tools import executor
+    from chat.services.tools.context import ExecutionContext
+
+    conn = await _adb(MCPConnection.objects.create)(
+        owner=user,
+        alias=f"study-{uuid_mod.uuid4().hex[:8]}",
+        transport="stdio",
+        config={"command": PYTHON, "args": [SERVER]},
+        state="active",
+        revision=1,
+    )
+    recs = [
+        ToolRecord(
+            stable_id=f"mcp:{conn.uuid}:read_lesson",
+            origin="mcp",
+            scope=conn.alias,
+            original_name="read_lesson",
+            description="Lê lição.",
+            input_schema={
+                "type": "object",
+                "properties": {"lesson_id": {"type": "string"}},
+                "required": ["lesson_id"],
+            },
+            version="r1",
+            approval="auto",
+        )
+    ]
+    out = await executor.execute_authorized(
+        recs[0].anthropic_name,
+        {"lesson_id": "tdd"},
+        ExecutionContext(user_id=user.pk, conversation_id=conversation.pk),
+        tool_use_id="tu_mcp_c2",
+        approval=None,
+        records=recs,
+        run_uuid="run-c2",
+    )
+    assert out.get("ok") is True, out
+    assert "TDD" in out.get("text", "")
+
+
+async def test_execute_authorized_mcp_conexao_inativa(user, conversation):
+    """C2: conexão disabled/negada nunca executa efeito."""
+    import uuid as uuid_mod
+
+    from chat.models_tools import MCPConnection
+    from chat.services.tools import executor
+    from chat.services.tools.context import ExecutionContext
+
+    conn = await _adb(MCPConnection.objects.create)(
+        owner=user,
+        alias=f"off-{uuid_mod.uuid4().hex[:8]}",
+        transport="stdio",
+        config={"command": PYTHON, "args": [SERVER]},
+        state="disabled",
+        revision=1,
+    )
+    recs = [
+        ToolRecord(
+            stable_id=f"mcp:{conn.uuid}:list_lessons",
+            origin="mcp",
+            scope=conn.alias,
+            original_name="list_lessons",
+            description="Lista.",
+            input_schema={"type": "object", "properties": {}},
+            version="r1",
+            approval="auto",
+        )
+    ]
+    out = await executor.execute_authorized(
+        recs[0].anthropic_name,
+        {},
+        ExecutionContext(user_id=user.pk, conversation_id=conversation.pk),
+        tool_use_id="tu_mcp_off",
+        approval=None,
+        records=recs,
+        run_uuid="run-c2-off",
+    )
+    assert out.get("ok") is False
+    assert out["error"]["code"] == "unavailable"

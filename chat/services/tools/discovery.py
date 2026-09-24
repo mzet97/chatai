@@ -18,6 +18,116 @@ from chat.services.tools import mcp_client
 from chat.services.tools.credentials import retrieve
 
 
+def connection_uuid_from_stable_id(stable_id: str) -> str | None:
+    """`mcp:<conn-uuid>:<original_name>` → uuid da conexão (ou None)."""
+    if not stable_id or not stable_id.startswith("mcp:"):
+        return None
+    parts = stable_id.split(":", 2)
+    if len(parts) < 3 or not parts[1]:
+        return None
+    return parts[1]
+
+
+def _load_active_connection(stable_id: str, user_id: int | None):
+    from chat.models_tools import MCPConnection
+
+    conn_uuid = connection_uuid_from_stable_id(stable_id)
+    if not conn_uuid:
+        return None
+    try:
+        conn = MCPConnection.objects.get(uuid=conn_uuid)
+    except MCPConnection.DoesNotExist:
+        return None
+    if conn.state != "active":
+        return None
+    if user_id is not None:
+        if conn.owner_id != user_id and user_id not in (conn.granted_user_ids or []):
+            return None
+    return conn
+
+
+def make_mcp_call(rec, user_id: int | None = None):
+    """`mcp_call(name, args)` real para `executor.execute` (T6).
+
+    Resolve a conexão pelo `stable_id` do registro congelado, monta o
+    transporte (stdio ou Streamable HTTP) e despacha o **nome original**.
+    Credencial sai do cofre só aqui; nunca em args, log ou snapshot.
+    """
+
+    async def _call(_anthropic_name: str, args: dict) -> dict:
+        from asgiref.sync import sync_to_async
+
+        conn = await sync_to_async(_load_active_connection)(rec.stable_id, user_id)
+        if conn is None:
+            return {
+                "ok": False,
+                "error": {
+                    "code": "unavailable",
+                    "message": "Conexão MCP inativa ou não autorizada.",
+                },
+            }
+        cfg = dict(conn.config or {})
+        original = rec.original_name
+        try:
+            if conn.transport == "stdio":
+                command = cfg.get("command", "")
+                if not command:
+                    return {
+                        "ok": False,
+                        "error": {
+                            "code": "validation",
+                            "message": "config.command ausente (caminho absoluto).",
+                        },
+                    }
+                config = mcp_client.StdioConfig(
+                    command=command,
+                    args=tuple(cfg.get("args", [])),
+                    extra_env=dict(cfg.get("env", {})),
+                )
+                return await mcp_client.call_tool_stdio(config, original, args)
+            if conn.transport == "streamable_http":
+                url = cfg.get("url", "")
+                if not url:
+                    return {
+                        "ok": False,
+                        "error": {"code": "validation", "message": "config.url ausente."},
+                    }
+                token = ""
+                if conn.credential_ref:
+                    token = await sync_to_async(retrieve)(conn.owner_id, conn.credential_ref) or ""
+                    if not token:
+                        return {
+                            "ok": False,
+                            "error": {
+                                "code": "unauthorized",
+                                "message": "Credencial ausente no cofre.",
+                            },
+                        }
+                config = mcp_client.HttpConfig(
+                    url=url,
+                    bearer_token=token,
+                    allow_loopback_http=bool(cfg.get("allow_loopback_http", False)),
+                )
+                return await mcp_client.call_tool_http(config, original, args)
+            return {
+                "ok": False,
+                "error": {
+                    "code": "validation",
+                    "message": f"Transporte desconhecido: {conn.transport!r}.",
+                },
+            }
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": {
+                    "code": "transport",
+                    "message": f"Falha no MCP: {type(exc).__name__}.",
+                },
+            }
+
+    return _call
+
+
 def _schema_hash(schema: dict) -> str:
     return hashlib.sha256(
         json.dumps(schema, ensure_ascii=False, sort_keys=True).encode()

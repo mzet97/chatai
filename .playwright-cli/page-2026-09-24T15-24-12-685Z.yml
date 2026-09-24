@@ -1,0 +1,11 @@
+- main [ref=e3]:
+  - heading "claude-chat-local" [level=1] [ref=e4]
+  - paragraph [ref=e5]: Uso pessoal, neste computador. Interface e dados locais; a inferência roda na API.
+  - generic [ref=e6]:
+    - paragraph [ref=e7]:
+      - generic [ref=e8]: "Usuário:"
+      - textbox "Usuário:" [active] [ref=e9]
+    - paragraph [ref=e10]:
+      - generic [ref=e11]: "Senha:"
+      - textbox "Senha:" [ref=e12]
+    - button "Entrar" [ref=e13] [cursor=pointer]

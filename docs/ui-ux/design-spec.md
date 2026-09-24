@@ -89,3 +89,21 @@ Elevação só em popover/diálogo; sem sombra por mensagem; transições 120–
 - V8 Comportamento: por conversa (pending aplicado na criação antes de gerar);
   salva sem reload, restaura em falha, trava durante geração/salvamento e
   serializa com o envio; thinking nunca enviado pelo app.
+
+
+---
+
+## Liquid Glass (2026-09-24) — redesign de casca
+
+Substitui a paleta terracota/editorial por linguagem Apple contemporânea
+(vidro translúcido, mesh de fundo, acento `#0071e3`/`#0a84ff`, SF/system).
+
+- **Tokens:** `tokens.css` (`--glass-*`, mesh, raios 12–24, motion spring 220ms).
+- **Shell:** sidebar/header/compositor com `backdrop-filter` + highlight superior;
+  fallback sólido via `@supports not`; `prefers-contrast: more` reduz blur.
+- **Header colapsado:** só título + Modelo + ⋯; controles avançados em `#head-adv`
+  (toggle “Mais controles”, persistido em `localStorage.cc-head-expanded`).
+- **Empty states:** “Nenhuma conversa ainda” × “Nada para «q»” (U2 da auditoria).
+- **Login:** cartão glass centralizado (U3).
+- **Evidência:** `docs/ui-ux/evidence/liquid/`. Comportamento (API/SSE/tools) intacto;
+  e2e expandem o header via `head-expanded` quando necessário.

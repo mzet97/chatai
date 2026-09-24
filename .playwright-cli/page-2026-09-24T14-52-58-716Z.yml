@@ -1,0 +1,68 @@
+- main [ref=f4e2]:
+  - link "← Voltar ao chat" [ref=f4e3] [cursor=pointer]:
+    - /url: /
+  - heading "Configurações" [level=1] [ref=f4e4]
+  - paragraph [ref=f4e5]: "Interface e armazenamento locais. A inferência ocorre na API: credenciais e histórico só saem do computador para o endpoint configurado, após confirmação."
+  - group "Aparência" [ref=f4e6]:
+    - radiogroup "Tema" [ref=f4e8]:
+      - generic [ref=f4e9]:
+        - radio "Sistema" [checked] [ref=f4e10]
+        - text: Sistema
+      - generic [ref=f4e11]:
+        - radio "Claro" [ref=f4e12]
+        - text: Claro
+      - generic [ref=f4e13]:
+        - radio "Escuro" [ref=f4e14]
+        - text: Escuro
+  - group "Conexão" [ref=f4e15]:
+    - generic [ref=f4e17]:
+      - term [ref=f4e18]: Modelo
+      - definition [ref=f4e19]: "claude-sonnet-5 (origem: file)"
+      - term [ref=f4e20]: Endpoint
+      - definition [ref=f4e21]: "https://api.anthropic.com (origem: file)"
+      - term [ref=f4e22]: Timeout
+      - definition [ref=f4e23]: "120 (origem: file)"
+      - term [ref=f4e24]: Tentativas
+      - definition [ref=f4e25]: "0 (origem: file)"
+      - term [ref=f4e26]: Máx. saída
+      - definition [ref=f4e27]: "1024 (origem: file)"
+      - term [ref=f4e28]: Orçamento entrada
+      - definition [ref=f4e29]: "12000 (origem: file)"
+      - term [ref=f4e30]: Chave (origem)
+      - definition [ref=f4e31]: "none (origem: —)"
+    - paragraph
+    - generic [ref=f4e32]:
+      - text: Chave da API (campo de escrita; vazio mantém)
+      - 'textbox "Chave da API (campo de escrita; vazio mantém) Origem atual: none · Keychain disponível: sim. “Testar conexão” não gera texto (só lista modelos); o teste de geração é separado e consome tokens." [ref=f4e33]':
+        - /placeholder: (vazio = manter)
+      - generic [ref=f4e34]:
+        - text: "Origem atual:"
+        - strong [ref=f4e35]: none
+        - text: "· Keychain disponível:"
+        - strong [ref=f4e36]: sim
+        - text: . “Testar conexão” não gera texto (só lista modelos); o teste de geração é separado e consome tokens.
+    - generic [ref=f4e37]:
+      - checkbox "Salvar no Keychain do macOS" [ref=f4e38]
+      - generic [ref=f4e39]: Salvar no Keychain do macOS
+    - paragraph [ref=f4e40]:
+      - button "Salvar chave" [ref=f4e41] [cursor=pointer]
+      - button "Remover chave…" [ref=f4e42] [cursor=pointer]
+    - paragraph [ref=f4e43]:
+      - button "Testar conexão" [ref=f4e44] [cursor=pointer]
+      - generic [ref=f4e45]:
+        - checkbox "Incluir teste de geração (pequeno, consome tokens)" [ref=f4e46]
+        - generic [ref=f4e47]: Incluir teste de geração (pequeno, consome tokens)
+    - list
+  - group "Padrões" [ref=f4e48]:
+    - generic [ref=f4e50]:
+      - text: Modelo padrão
+      - combobox "Modelo padrão Vale para conversas novas. Cada resposta guarda seu modelo real." [ref=f4e51]
+      - generic [ref=f4e52]: Vale para conversas novas. Cada resposta guarda seu modelo real.
+    - button "Salvar padrões" [ref=f4e53] [cursor=pointer]
+    - status
+    - group [ref=f4e54]:
+      - generic "Avançado (conexão e limites)" [ref=f4e55] [cursor=pointer]
+  - group "Modelos" [ref=f4e56]:
+    - button "Atualizar catálogo" [ref=f4e58] [cursor=pointer]
+    - paragraph [ref=f4e59]: "Erro: Nenhuma chave configurada."
+    - list

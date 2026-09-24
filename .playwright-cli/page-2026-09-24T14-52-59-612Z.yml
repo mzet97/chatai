@@ -1,0 +1,16 @@
+- main [ref=f5e2]:
+  - link "← Voltar ao chat" [ref=f5e3] [cursor=pointer]:
+    - /url: /
+  - heading "Conhecimento" [level=1] [ref=f5e4]
+  - paragraph [ref=f5e5]: "Bases privadas: documentos, embeddings e buscas ficam neste computador. Somente os trechos selecionados como evidência saem para a Anthropic na hora de responder."
+  - region "Bases" [ref=f5e6]:
+    - heading "Bases" [level=2] [ref=f5e7]
+    - form "Criar base" [ref=f5e8]:
+      - generic [ref=f5e9]: Nome da base
+      - textbox "Nome da base" [ref=f5e10]:
+        - /placeholder: Nome da base…
+      - button "Criar" [ref=f5e11] [cursor=pointer]
+    - status [ref=f5e12]: Nenhuma base. Crie a primeira acima.
+    - list
+  - paragraph [ref=f5e13]:
+    - button "Enviar documentos" [ref=f5e14] [cursor=pointer]

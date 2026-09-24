@@ -63,6 +63,8 @@
           <span id="model-label">Modelo</span>
           <svg class="ic sm" aria-hidden="true"><use href="#i-chev"/></svg>
         </button>
+        {# Controles avançados: DOM estável p/ JS; UI colapsada em ⋯ (Liquid Glass). #}
+        <div class="head-adv" id="head-adv">
         <label class="level-wrap">
           <span class="visually-hidden" id="level-label">Nível de variação</span>
           <select id="level-select" class="model-select" aria-labelledby="level-label level-hint" aria-describedby="level-hint">
@@ -102,6 +104,7 @@
           <span class="stream-label">Streaming</span>
           <span class="visually-hidden" id="stream-hint">Exibe a resposta conforme ela é gerada. Desligado: a resposta será exibida ao terminar.</span>
         </label>
+        </div>
         <button id="actions-btn" class="icon-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Ações da conversa">
           <svg class="ic" aria-hidden="true"><use href="#i-dots"/></svg>
         </button>
@@ -166,6 +169,11 @@
         <p class="pop-hint">Pode aumentar o tempo de resposta e o consumo de tokens. Vale para a próxima resposta.</p>
       </div>
       <div id="actions-pop" class="popover menu" hidden role="menu" tabindex="-1">
+        <button role="menuitem" type="button" data-act="more">Mais controles</button>
+        <button role="menuitem" type="button" data-act="tools-panel">Ferramentas…</button>
+        <button role="menuitem" type="button" data-act="sources-panel">Fontes…</button>
+        <button role="menuitem" type="button" data-act="thinking-panel">Pensamento…</button>
+        <div class="pop-sep" role="separator"></div>
         <button role="menuitemcheckbox" type="button" id="stream-menuitem" aria-checked="true">Streaming: ativado</button>
         <button role="menuitem" type="button" data-act="conv-settings">Configurações da conversa</button>
         <button role="menuitem" type="button" data-act="details">Detalhes da execução</button>

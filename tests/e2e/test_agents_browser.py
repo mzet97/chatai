@@ -154,13 +154,14 @@ def test_exemplos_seletor_equipe_aviso_persiste(agents_server):
 
             # Seletor real: perfil + modo Equipe → aviso visível.
             page.goto(f"{agents_server}/c/{ids['conv']}/")
-            page.wait_for_selector("#agent-mode", timeout=10000)
+            page.evaluate("() => document.body.classList.add('head-expanded')")
+            page.wait_for_selector("#agent-mode", state="visible", timeout=10000)
             page.wait_for_function(
                 "() => !document.getElementById('agent-mode').disabled",
                 timeout=15000,
             )
-            page.select_option("#agent-select", ids["coord"])
-            page.select_option("#agent-mode", "team")
+            page.locator("#agent-select").select_option(ids["coord"], force=True)
+            page.locator("#agent-mode").select_option("team", force=True)
             page.wait_for_function(
                 "() => !document.getElementById('team-banner') "
                 "|| !document.getElementById('team-banner').hidden",
@@ -179,7 +180,7 @@ def test_exemplos_seletor_equipe_aviso_persiste(agents_server):
             assert page.locator("#team-banner").is_visible()
 
             # Volta p/ Chat: aviso some.
-            page.select_option("#agent-mode", "chat")
+            page.locator("#agent-mode").select_option("chat", force=True)
             page.wait_for_function(
                 "() => document.getElementById('team-banner').hidden",
                 timeout=15000,
